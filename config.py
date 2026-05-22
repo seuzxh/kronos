@@ -22,6 +22,8 @@ class KronosConfig:
     llm_api_key: str = ""
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    qlib_provider_uri: str = "/data02/home/zxh/qlib_local_data/cn_data"
+    max_batch_size: int = 50
 
     _ENV_MAP: Dict[str, str] = field(
         default_factory=lambda: {
@@ -39,6 +41,8 @@ class KronosConfig:
             "llm_api_key": "LLM_API_KEY",
             "api_host": "API_HOST",
             "api_port": "API_PORT",
+            "qlib_provider_uri": "QLIB_PROVIDER_URI",
+            "max_batch_size": "MAX_BATCH_SIZE",
         },
         repr=False,
         compare=False,
@@ -46,7 +50,7 @@ class KronosConfig:
 
     _INT_FIELDS: frozenset = frozenset({
         "kronos_max_context", "kronos_lookback", "kronos_pred_len",
-        "kronos_sample_count", "api_port",
+        "kronos_sample_count", "api_port", "max_batch_size",
     })
 
     _FLOAT_FIELDS: frozenset = frozenset({
@@ -114,6 +118,8 @@ class KronosConfig:
             errors.append("kronos_sample_count must be at least 1")
         if self.api_port < 1 or self.api_port > 65535:
             errors.append("api_port must be between 1 and 65535")
+        if self.max_batch_size < 1:
+            errors.append("max_batch_size must be at least 1")
 
         resolved_device = self.get_device()
         if resolved_device.startswith("cuda"):

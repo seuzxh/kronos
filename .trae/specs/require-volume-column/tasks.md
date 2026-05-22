@@ -6,10 +6,10 @@
   - [x] SubTask 1.3: 新增 `load_qlib(symbol, start_time, end_time, provider_uri, freq)` 函数
   - [x] SubTask 1.4: qlib 不可用时（未安装/目录不存在）给出明确提示
 
-- [ ] Task 2: 更新 config.py 和 .env — 新增 qlib 配置 + 批量限制
-  - [ ] SubTask 2.1: KronosConfig 新增 `qlib_provider_uri` 字段
-  - [ ] SubTask 2.2: KronosConfig 新增 `max_batch_size` 字段（默认 50）
-  - [ ] SubTask 2.3: `.env` 和 `.env.example` 新增 `QLIB_PROVIDER_URI` 和 `MAX_BATCH_SIZE` 配置
+- [x] Task 2: 更新 config.py 和 .env — 新增 qlib 配置 + 批量限制
+  - [x] SubTask 2.1: KronosConfig 新增 `qlib_provider_uri` 字段
+  - [x] SubTask 2.2: KronosConfig 新增 `max_batch_size` 字段（默认 50）
+  - [x] SubTask 2.3: `.env` 和 `.env.example` 新增 `QLIB_PROVIDER_URI` 和 `MAX_BATCH_SIZE` 配置
 
 - [ ] Task 3: 更新 api.py — 新增 predict-qlib 端点
   - [ ] SubTask 3.1: 新增 `POST /api/predict-qlib` 端点（symbol, start_time, end_time 参数）
