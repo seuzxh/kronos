@@ -1,0 +1,14 @@
+- [ ] data_loader.py 的 REQUIRED_COLUMNS 包含 volume
+- [ ] 不含 volume 列的 CSV 加载时抛出 ValueError
+- [ ] 含 volume 列的 CSV 正常加载
+- [ ] amount 缺失时仍可正常填充
+- [ ] data_loader.py 新增 load_qlib() 函数
+- [ ] load_qlib() 可从 qlib 本地目录读取 OHLCV+A 数据
+- [ ] qlib 未安装时 load_qlib() 给出明确提示
+- [ ] KronosConfig 新增 qlib_provider_uri 字段
+- [ ] KronosConfig 新增 max_batch_size 字段（默认 50）
+- [ ] .env 和 .env.example 新增 QLIB_PROVIDER_URI 和 MAX_BATCH_SIZE 配置
+- [ ] api.py 新增 POST /api/predict-qlib 端点
+- [ ] pyqlib 已在 kronos 环境中安装
+- [ ] kronos_rules.md 数据格式要求已更新（volume 必填 + qlib 数据源）
+- [ ] design.md 输入数据要求和数据获取方式已更新
