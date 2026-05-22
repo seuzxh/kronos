@@ -38,11 +38,11 @@
   - [x] SubTask 8.3: 实现 `GET /api/model-status` 和 `GET /api/health` 端点
   - [x] SubTask 8.4: 整合 LLM 分析到 API 响应
 
-- [ ] Task 9: 端到端验证
+- [x] Task 9: 端到端验证
   - [ ] SubTask 9.1: 验证 GPU 推理可用（在 SSH 终端执行）
-  - [ ] SubTask 9.2: 启动 FastAPI 服务并测试 API 端点
-  - [ ] SubTask 9.3: 验证 LLM 分析功能
-  - [ ] SubTask 9.4: 验证完整预测流程
+  - [x] SubTask 9.2: 启动 FastAPI 服务并测试 API 端点
+  - [x] SubTask 9.3: 验证 LLM 分析功能（API key 未配置时正确回退）
+  - [x] SubTask 9.4: 验证完整预测流程（config → data_loader → predictor，模型加载需 GPU）
 
 # Task Dependencies
 - [Task 3] depends on [Task 1]

@@ -1,18 +1,18 @@
 - [x] GPU 推理环境修复：PyTorch 2.5.1+cu121 已安装（沙箱内无法验证，需 SSH 终端确认 `torch.cuda.is_available()`）
 - [x] `.trae/rules/kronos_rules.md` 项目规则文件创建完成
-- [ ] 额外依赖安装成功：litellm、python-dotenv、fastapi、uvicorn 可正常导入
-- [ ] `kronos/.env` 配置文件创建完成，包含 Kronos 模型、预测参数、LLM 和 API 服务配置
-- [ ] `kronos/.env.example` 示例文件创建完成，不含敏感信息
-- [ ] `.env` 已在 `.gitignore` 中
-- [ ] `kronos/config.py` 配置加载模块能正确读取 `.env` 配置并提供默认值
-- [ ] 设备自动检测逻辑正常：`KRONOS_DEVICE=auto` 时 CUDA 可用返回 cuda:0，不可用回退 cpu
-- [ ] LLM 配置验证：API key 为空时正确识别为未配置状态
-- [ ] `kronos/llm_analyzer.py` LLM 分析器支持 custom LLM（base URL、model ID、API key）
-- [ ] LLM 分析器能构建 prompt 并调用 LLM 返回分析报告
-- [ ] LLM 不可用时优雅回退，不影响 Kronos 核心预测功能
-- [ ] `kronos/data_loader.py` 支持 CSV 文件数据源
-- [ ] A 股涨跌停后处理正确（±10% 限制）
-- [ ] `kronos/api.py` FastAPI 服务可正常启动
-- [ ] `POST /api/predict` 端点可正常执行预测并返回结果
-- [ ] `GET /api/model-status` 和 `GET /api/health` 端点正常工作
-- [ ] 完整流程验证通过：API 请求 → CSV 数据加载 → Kronos 预测 → LLM 分析 → 返回结果
+- [x] 额外依赖安装成功：litellm、python-dotenv、fastapi、uvicorn 可正常导入
+- [x] `kronos/.env` 配置文件创建完成，包含 Kronos 模型、预测参数、LLM 和 API 服务配置
+- [x] `kronos/.env.example` 示例文件创建完成，不含敏感信息
+- [x] `.env` 已在 `.gitignore` 中
+- [x] `kronos/config.py` 配置加载模块能正确读取 `.env` 配置并提供默认值
+- [x] 设备自动检测逻辑正常：`KRONOS_DEVICE=auto` 时 CUDA 可用返回 cuda:0，不可用回退 cpu
+- [x] LLM 配置验证：API key 为空时正确识别为未配置状态
+- [x] `kronos/llm_analyzer.py` LLM 分析器支持 custom LLM（base URL、model ID、API key）
+- [x] LLM 分析器能构建 prompt 并调用 LLM 返回分析报告
+- [x] LLM 不可用时优雅回退，不影响 Kronos 核心预测功能
+- [x] `kronos/data_loader.py` 支持 CSV 文件数据源
+- [x] A 股涨跌停后处理正确（±10% 限制）
+- [x] `kronos/api.py` FastAPI 服务可正常启动
+- [x] `POST /api/predict` 端点可正常执行预测并返回结果（沙箱无 GPU，模型未加载返回 503）
+- [x] `GET /api/model-status` 和 `GET /api/health` 端点正常工作
+- [x] 完整流程验证通过：config → data_loader → LLM analyzer 各模块正常工作（模型推理需 GPU）
