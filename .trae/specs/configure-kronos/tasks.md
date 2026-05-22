@@ -17,20 +17,20 @@
   - [x] SubTask 4.2: 创建 `kronos/.env.example`（不含敏感信息）
   - [x] SubTask 4.3: 确保 `.env` 在 `.gitignore` 中
 
-- [ ] Task 5: 创建配置加载模块 `kronos/config.py`
-  - [ ] SubTask 5.1: 实现配置加载函数（从 `.env` 读取并提供默认值）
-  - [ ] SubTask 5.2: 实现设备自动检测（CUDA → MPS → CPU）
-  - [ ] SubTask 5.3: 实现 LLM 配置验证
+- [x] Task 5: 创建配置加载模块 `kronos/config.py`
+  - [x] SubTask 5.1: 实现配置加载函数（从 `.env` 读取并提供默认值）
+  - [x] SubTask 5.2: 实现设备自动检测（CUDA → MPS → CPU）
+  - [x] SubTask 5.3: 实现 LLM 配置验证
 
-- [ ] Task 6: 创建 LLM 分析器模块 `kronos/llm_analyzer.py`
-  - [ ] SubTask 6.1: 实现 `LLMAnalyzer` 类（litellm 调用 custom LLM）
-  - [ ] SubTask 6.2: 实现 `analyze_prediction()` 方法（构建 prompt + 调用 LLM）
-  - [ ] SubTask 6.3: 实现 LLM 不可用时优雅回退
-  - [ ] SubTask 6.4: 实现结构化分析输出
+- [x] Task 6: 创建 LLM 分析器模块 `kronos/llm_analyzer.py`
+  - [x] SubTask 6.1: 实现 `LLMAnalyzer` 类（litellm 调用 custom LLM）
+  - [x] SubTask 6.2: 实现 `analyze_prediction()` 方法（构建 prompt + 调用 LLM）
+  - [x] SubTask 6.3: 实现 LLM 不可用时优雅回退
+  - [x] SubTask 6.4: 实现结构化分析输出
 
-- [ ] Task 7: 创建数据源模块 `kronos/data_loader.py`
-  - [ ] SubTask 7.1: 实现 CSV 加载（自动列名映射）
-  - [ ] SubTask 7.2: 实现 A 股涨跌停后处理（±10%）
+- [x] Task 7: 创建数据源模块 `kronos/data_loader.py`
+  - [x] SubTask 7.1: 实现 CSV 加载（自动列名映射）
+  - [x] SubTask 7.2: 实现 A 股涨跌停后处理（±10%）
 
 - [ ] Task 8: 创建 FastAPI 推理服务 `kronos/api.py`
   - [ ] SubTask 8.1: 实现 FastAPI 应用和模型加载
