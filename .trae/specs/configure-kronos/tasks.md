@@ -12,10 +12,10 @@
   - [x] SubTask 3.1: 安装 litellm、python-dotenv、fastapi、uvicorn
   - [x] SubTask 3.2: 验证所有依赖安装成功
 
-- [ ] Task 4: 创建统一配置文件
-  - [ ] SubTask 4.1: 创建 `kronos/.env`（Kronos 模型 + 预测参数 + LLM + API 服务配置）
-  - [ ] SubTask 4.2: 创建 `kronos/.env.example`（不含敏感信息）
-  - [ ] SubTask 4.3: 确保 `.env` 在 `.gitignore` 中
+- [x] Task 4: 创建统一配置文件
+  - [x] SubTask 4.1: 创建 `kronos/.env`（Kronos 模型 + 预测参数 + LLM + API 服务配置）
+  - [x] SubTask 4.2: 创建 `kronos/.env.example`（不含敏感信息）
+  - [x] SubTask 4.3: 确保 `.env` 在 `.gitignore` 中
 
 - [ ] Task 5: 创建配置加载模块 `kronos/config.py`
   - [ ] SubTask 5.1: 实现配置加载函数（从 `.env` 读取并提供默认值）
