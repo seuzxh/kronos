@@ -32,11 +32,11 @@
   - [x] SubTask 7.1: 实现 CSV 加载（自动列名映射）
   - [x] SubTask 7.2: 实现 A 股涨跌停后处理（±10%）
 
-- [ ] Task 8: 创建 FastAPI 推理服务 `kronos/api.py`
-  - [ ] SubTask 8.1: 实现 FastAPI 应用和模型加载
-  - [ ] SubTask 8.2: 实现 `POST /api/predict` 端点（支持 csv 数据上传）
-  - [ ] SubTask 8.3: 实现 `GET /api/model-status` 和 `GET /api/health` 端点
-  - [ ] SubTask 8.4: 整合 LLM 分析到 API 响应
+- [x] Task 8: 创建 FastAPI 推理服务 `kronos/api.py`
+  - [x] SubTask 8.1: 实现 FastAPI 应用和模型加载
+  - [x] SubTask 8.2: 实现 `POST /api/predict` 端点（支持 csv 数据上传）
+  - [x] SubTask 8.3: 实现 `GET /api/model-status` 和 `GET /api/health` 端点
+  - [x] SubTask 8.4: 整合 LLM 分析到 API 响应
 
 - [ ] Task 9: 端到端验证
   - [ ] SubTask 9.1: 验证 GPU 推理可用（在 SSH 终端执行）
