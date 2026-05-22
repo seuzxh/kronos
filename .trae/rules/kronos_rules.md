@@ -320,6 +320,175 @@ pred_df = apply_price_limits(pred_df, last_close, limit_rate=0.1)
 print(pred_df.head())
 ```
 
+### 11. 模块 API 参考
+
+#### config.py — 配置加载
+
+```python
+from config import KronosConfig
+
+cfg = KronosConfig.load_config()                    # 从 .env 加载
+cfg = KronosConfig.load_config(env_path="/path/.env")  # 指定路径
+cfg = KronosConfig(kronos_model="NeoQuasar/Kronos-base", llm_api_key="key")  # 直接构造
+
+cfg.get_device()         # → "cuda:0" / "mps" / "cpu"
+cfg.is_llm_configured()  # → True / False
+cfg.validate()           # → [] (空=无错误)
+```
+
+配置字段：
+
+| 字段 | 类型 | 默认值 | 环境变量 |
+|------|------|--------|---------|
+| `kronos_model` | str | `NeoQuasar/Kronos-small` | `KRONOS_MODEL` |
+| `kronos_tokenizer` | str | `NeoQuasar/Kronos-Tokenizer-base` | `KRONOS_TOKENIZER` |
+| `kronos_device` | str | `auto` | `KRONOS_DEVICE` |
+| `kronos_max_context` | int | 512 | `KRONOS_MAX_CONTEXT` |
+| `kronos_lookback` | int | 400 | `KRONOS_LOOKBACK` |
+| `kronos_pred_len` | int | 120 | `KRONOS_PRED_LEN` |
+| `kronos_temperature` | float | 1.0 | `KRONOS_TEMPERATURE` |
+| `kronos_top_p` | float | 0.9 | `KRONOS_TOP_P` |
+| `kronos_sample_count` | int | 1 | `KRONOS_SAMPLE_COUNT` |
+| `llm_api_base` | str | `https://open.bigmodel.cn/api/paas/v4` | `LLM_API_BASE` |
+| `llm_model_id` | str | `glm-4-flash` | `LLM_MODEL_ID` |
+| `llm_api_key` | str | `""` | `LLM_API_KEY` |
+| `api_host` | str | `0.0.0.0` | `API_HOST` |
+| `api_port` | int | 8000 | `API_PORT` |
+| `qlib_provider_uri` | str | `/data02/home/zxh/qlib_local_data/cn_data` | `QLIB_PROVIDER_URI` |
+| `max_batch_size` | int | 50 | `MAX_BATCH_SIZE` |
+
+#### data_loader.py — 数据加载
+
+```python
+from data_loader import load_csv, load_qlib, apply_price_limits
+
+# CSV 加载（必须列: open, high, low, close, volume）
+df = load_csv("data.csv")
+# → DataFrame [timestamps, open, high, low, close, volume, amount]
+
+# qlib 加载
+df = load_qlib(symbol="SH600977", start_time="2024-01-01", end_time="2025-05-16")
+# → DataFrame [timestamps, open, high, low, close, volume, amount]
+
+# A 股涨跌停后处理
+pred_df = apply_price_limits(pred_df, last_close=10.0, limit_rate=0.1)
+```
+
+异常：`ValueError`（缺少必须列/qlib 空数据）、`ImportError`（pyqlib 未安装）
+
+#### llm_analyzer.py — LLM 分析
+
+```python
+from llm_analyzer import LLMAnalyzer
+
+analyzer = LLMAnalyzer(
+    api_base="https://open.bigmodel.cn/api/paas/v4",
+    model_id="glm-4-flash",
+    api_key="your-api-key",
+)
+
+analyzer.is_available()  # → True / False
+
+result = analyzer.analyze_prediction(pred_df, last_close=10.0, symbol="SH600977")
+# → {"trend": "...", "support_resistance": "...", "advice": "...", "risk": "..."}
+# → None（LLM 不可用 / 调用失败）
+```
+
+支持的 LLM 提供商：
+
+| 提供商 | api_base | model_id 示例 |
+|--------|----------|--------------|
+| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+| 火山引擎 | `https://ark.cn-beijing.volces.com/api/v3` | CodingPlan 模型 ID |
+
+### 12. REST API 参考
+
+启动服务：`uvicorn api:app --host 0.0.0.0 --port 8000`
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `GET /api/health` | GET | 健康检查 |
+| `GET /api/model-status` | GET | 模型状态 |
+| `POST /api/predict` | POST | 上传 CSV 预测 |
+| `POST /api/predict-qlib` | POST | 从 qlib 读取数据预测 |
+
+#### 请求参数
+
+`POST /api/predict`：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `file` | File | ✅ | - | CSV 文件 |
+| `symbol` | str | ❌ | None | 股票代码 |
+| `lookback` | int | ❌ | 400 | 历史长度 |
+| `pred_len` | int | ❌ | 120 | 预测步数 |
+| `temperature` | float | ❌ | 1.0 | 采样温度 |
+| `top_p` | float | ❌ | 0.9 | 核采样阈值 |
+| `sample_count` | int | ❌ | 1 | 采样次数 |
+
+`POST /api/predict-qlib`：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `symbol` | str | ✅ | - | 股票代码 |
+| `start_time` | str | ❌ | 2024-01-01 | 开始日期 |
+| `end_time` | str | ❌ | 2025-05-16 | 结束日期 |
+| `lookback` | int | ❌ | 400 | 历史长度 |
+| `pred_len` | int | ❌ | 120 | 预测步数 |
+| `temperature` | float | ❌ | 1.0 | 采样温度 |
+| `top_p` | float | ❌ | 0.9 | 核采样阈值 |
+| `sample_count` | int | ❌ | 1 | 采样次数 |
+
+#### 响应格式
+
+```json
+{
+  "success": true,
+  "prediction": [
+    {"open": 10.23, "high": 10.32, "low": 10.19, "close": 10.30, "volume": 8797436.0, "amount": 90268096.0}
+  ],
+  "analysis": {
+    "trend": "趋势解读",
+    "support_resistance": "支撑阻力位",
+    "advice": "投资建议",
+    "risk": "风险提示"
+  },
+  "params": {"lookback": 400, "pred_len": 120, "temperature": 1.0, "top_p": 0.9, "sample_count": 1, "symbol": "SH600977"}
+}
+```
+
+#### 错误码
+
+| 状态码 | 说明 |
+|--------|------|
+| 200 | 成功 |
+| 400 | 数据不足 / 缺少必须列 / qlib 返回空 |
+| 503 | 模型未加载 / pyqlib 未安装 |
+
+#### 调用示例
+
+```bash
+# CSV 预测
+curl -X POST http://localhost:8000/api/predict \
+  -F "file=@data.csv" -F "symbol=SH600977" -F "pred_len=60"
+
+# qlib 预测
+curl -X POST http://localhost:8000/api/predict-qlib \
+  -F "symbol=SH600977" -F "start_time=2024-01-01" -F "end_time=2025-05-16"
+```
+
+#### 跨环境调用
+
+其他 conda 环境（如 qlib）通过 REST API 调用（推荐，避免依赖冲突）：
+
+```python
+import requests
+resp = requests.post("http://localhost:8000/api/predict-qlib", data={
+    "symbol": "SH600977", "start_time": "2024-01-01", "end_time": "2025-05-16",
+})
+result = resp.json()
+```
+
 ### 核心原则
 - **不修改** `model/` 目录下的核心模型代码
 - **不影响** 其他 conda 环境（rdagent/qlib）
