@@ -23,12 +23,12 @@
   - [x] SubTask 5.1: 更新 `kronos_rules.md` 数据格式要求章节（volume 必填 + qlib 数据源）
   - [x] SubTask 5.2: 更新 `design.md` 输入数据要求和数据获取方式章节
 
-- [ ] Task 6: 验证并提交
-  - [ ] SubTask 6.1: 验证不含 volume 的 CSV 加载时抛出 ValueError
-  - [ ] SubTask 6.2: 验证含 volume 的 CSV 正常加载
-  - [ ] SubTask 6.3: 验证 load_qlib() 可正常读取数据
-  - [ ] SubTask 6.4: 验证 /api/predict-qlib 端点
-  - [ ] SubTask 6.5: Git 提交
+- [x] Task 6: 验证并提交
+  - [x] SubTask 6.1: 验证不含 volume 的 CSV 加载时抛出 ValueError
+  - [x] SubTask 6.2: 验证含 volume 的 CSV 正常加载
+  - [x] SubTask 6.3: 验证 load_qlib() 可正常读取数据
+  - [x] SubTask 6.4: 验证 /api/predict-qlib 端点
+  - [x] SubTask 6.5: Git 提交
 
 # Task Dependencies
 - [Task 2] depends on [Task 1]
