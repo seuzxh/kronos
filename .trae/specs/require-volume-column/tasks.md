@@ -11,9 +11,9 @@
   - [x] SubTask 2.2: KronosConfig 新增 `max_batch_size` 字段（默认 50）
   - [x] SubTask 2.3: `.env` 和 `.env.example` 新增 `QLIB_PROVIDER_URI` 和 `MAX_BATCH_SIZE` 配置
 
-- [ ] Task 3: 更新 api.py — 新增 predict-qlib 端点
-  - [ ] SubTask 3.1: 新增 `POST /api/predict-qlib` 端点（symbol, start_time, end_time 参数）
-  - [ ] SubTask 3.2: qlib 未安装时返回 503 提示
+- [x] Task 3: 更新 api.py — 新增 predict-qlib 端点
+  - [x] SubTask 3.1: 新增 `POST /api/predict-qlib` 端点（symbol, start_time, end_time 参数）
+  - [x] SubTask 3.2: qlib 未安装时返回 503 提示
 
 - [ ] Task 4: 安装 pyqlib 依赖
   - [ ] SubTask 4.1: 在 kronos conda 环境中安装 pyqlib
