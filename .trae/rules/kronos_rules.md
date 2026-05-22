@@ -87,6 +87,70 @@ from model import Kronos, KronosTokenizer, KronosPredictor
 | Kronos-base | Kronos-Tokenizer-base | 512 | 102.3M | ~8GB | NeoQuasar/Kronos-base | 专业交易、机构使用 |
 | Kronos-large | Kronos-Tokenizer-base | 512 | 499.2M | 暂未开放 | 暂未开放 | - |
 
+### 2.1 模型主要作用
+
+Kronos 是一个**基于 Token 化的自回归时间序列预测模型**，核心作用是将金融 K 线数据转化为离散 token 序列，然后用 Transformer 进行自回归预测。与传统时间序列模型不同，Kronos 借鉴了大语言模型（LLM）的架构思想：
+
+1. **Tokenizer（分词器）**：将连续的 OHLCV+A 数值序列编码为离散 token ID
+2. **Kronos Model（预测模型）**：基于 token 序列进行自回归生成，预测未来 token
+3. **解码**：将预测的 token ID 解码回 OHLCV+A 数值
+
+### 2.2 模型架构分类
+
+Kronos 系统由三个核心组件构成：
+
+| 组件 | 类名 | 作用 | 源码位置 |
+|------|------|------|---------|
+| **分词器** | `KronosTokenizer` | 将连续数值编码为离散 token，或将 token 解码回数值 | [kronos.py:L13-177](file:///home/zxh/quant_projects/kronos/model/kronos.py#L13-177) |
+| **预测模型** | `Kronos` | 基于历史 token 自回归预测未来 token | [kronos.py:L180-296](file:///home/zxh/quant_projects/kronos/model/kronos.py#L180-296) |
+| **预测器** | `KronosPredictor` | 封装完整的预测流程（归一化→编码→推理→解码→反归一化） | [kronos.py:L482-559](file:///home/zxh/quant_projects/kronos/model/kronos.py#L482-559) |
+
+#### 分词器（KronosTokenizer）内部结构
+
+| 子模块 | 类名 | 作用 |
+|--------|------|------|
+| Encoder | `TransformerBlock` × N | 将输入特征编码为隐表示 |
+| 量化器 | `BSQuantizer` → `BinarySphericalQuantizer` | 将连续隐表示量化为离散 token（二值球面量化） |
+| Decoder | `TransformerBlock` × N | 将量化表示解码回特征空间 |
+
+分词器采用**分层量化**策略，将每个时间步的 6 维特征量化为两个 token：
+- **s1 token（粗粒度）**：`s1_bits` 位，捕捉主要趋势和价格水平
+- **s2 token（细粒度）**：`s2_bits` 位，捕捉细节波动
+
+| 分词器版本 | s1_bits | s2_bits | s1 词表大小 | s2 词表大小 | 总 token 空间 |
+|-----------|---------|---------|------------|------------|--------------|
+| Kronos-Tokenizer-base | 10 | 10 | 1,024 | 1,024 | 1,048,576 |
+| Kronos-Tokenizer-2k | 11 | 11 | 2,048 | 2,048 | 4,194,304 |
+
+#### 预测模型（Kronos）内部结构
+
+| 子模块 | 类名 | 作用 |
+|--------|------|------|
+| 层次嵌入 | `HierarchicalEmbedding` | 将 s1/s2 token ID 映射为向量，融合为统一表示 |
+| 时间嵌入 | `TemporalEmbedding` | 编码时间特征（周期性、趋势） |
+| Transformer | `TransformerBlock` × N | 自回归建模 token 序列依赖关系 |
+| 依赖感知层 | `DependencyAwareLayer` | s2 解码时交叉关注 s1，保证粗细粒度一致性 |
+| 双头输出 | `DualHead` | 分别输出 s1 logits 和 s2 logits |
+
+推理流程：
+1. 历史数据 → KronosTokenizer.encode() → s1_ids + s2_ids
+2. Kronos.forward(s1_ids, s2_ids, stamp) → s1_logits, s2_logits
+3. 采样 s1_id → DependencyAwareLayer → s2_logits → 采样 s2_id
+4. 重复 2-3 直到生成 pred_len 个 token
+5. KronosTokenizer.decode(s1_ids + s2_ids) → 预测数值
+
+#### 预测器（KronosPredictor）封装流程
+
+```
+原始 DataFrame
+  → 归一化（clip + z-score）
+  → KronosTokenizer.encode()
+  → 自回归推理（auto_regressive_inference）
+  → KronosTokenizer.decode()
+  → 反归一化
+  → 预测 DataFrame
+```
+
 ### 3. 加载模型
 
 ```python

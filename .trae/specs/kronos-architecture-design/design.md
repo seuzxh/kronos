@@ -1,5 +1,73 @@
 # Kronos 系统架构设计文档
 
+## 0. 模型主要作用与架构分类
+
+### 0.1 主要作用
+
+Kronos 是一个**基于 Token 化的自回归时间序列预测模型**，核心作用是将金融 K 线数据转化为离散 token 序列，然后用 Transformer 进行自回归预测。与传统时间序列模型不同，Kronos 借鉴了大语言模型（LLM）的架构思想：
+
+1. **Tokenizer（分词器）**：将连续的 OHLCV+A 数值序列编码为离散 token ID
+2. **Kronos Model（预测模型）**：基于 token 序列进行自回归生成，预测未来 token
+3. **解码**：将预测的 token ID 解码回 OHLCV+A 数值
+
+### 0.2 架构分类
+
+Kronos 系统由三个核心组件构成：
+
+| 组件 | 类名 | 作用 | 源码位置 |
+|------|------|------|---------|
+| **分词器** | `KronosTokenizer` | 将连续数值编码为离散 token，或将 token 解码回数值 | `model/kronos.py` L13-177 |
+| **预测模型** | `Kronos` | 基于历史 token 自回归预测未来 token | `model/kronos.py` L180-296 |
+| **预测器** | `KronosPredictor` | 封装完整预测流程（归一化→编码→推理→解码→反归一化） | `model/kronos.py` L482-559 |
+
+#### 分词器（KronosTokenizer）内部结构
+
+| 子模块 | 类名 | 作用 |
+|--------|------|------|
+| Encoder | `TransformerBlock` × N | 将输入特征编码为隐表示 |
+| 量化器 | `BSQuantizer` → `BinarySphericalQuantizer` | 将连续隐表示量化为离散 token（二值球面量化） |
+| Decoder | `TransformerBlock` × N | 将量化表示解码回特征空间 |
+
+分词器采用**分层量化**策略，将每个时间步的 6 维特征量化为两个 token：
+- **s1 token（粗粒度）**：`s1_bits` 位，捕捉主要趋势和价格水平
+- **s2 token（细粒度）**：`s2_bits` 位，捕捉细节波动
+
+| 分词器版本 | s1_bits | s2_bits | s1 词表大小 | s2 词表大小 | 总 token 空间 |
+|-----------|---------|---------|------------|------------|--------------|
+| Kronos-Tokenizer-base | 10 | 10 | 1,024 | 1,024 | 1,048,576 |
+| Kronos-Tokenizer-2k | 11 | 11 | 2,048 | 2,048 | 4,194,304 |
+
+#### 预测模型（Kronos）内部结构
+
+| 子模块 | 类名 | 作用 |
+|--------|------|------|
+| 层次嵌入 | `HierarchicalEmbedding` | 将 s1/s2 token ID 映射为向量，融合为统一表示 |
+| 时间嵌入 | `TemporalEmbedding` | 编码时间特征（周期性、趋势） |
+| Transformer | `TransformerBlock` × N | 自回归建模 token 序列依赖关系 |
+| 依赖感知层 | `DependencyAwareLayer` | s2 解码时交叉关注 s1，保证粗细粒度一致性 |
+| 双头输出 | `DualHead` | 分别输出 s1 logits 和 s2 logits |
+
+推理流程：
+1. 历史数据 → KronosTokenizer.encode() → s1_ids + s2_ids
+2. Kronos.forward(s1_ids, s2_ids, stamp) → s1_logits, s2_logits
+3. 采样 s1_id → DependencyAwareLayer → s2_logits → 采样 s2_id
+4. 重复 2-3 直到生成 pred_len 个 token
+5. KronosTokenizer.decode(s1_ids + s2_ids) → 预测数值
+
+#### 预测器（KronosPredictor）封装流程
+
+```
+原始 DataFrame
+  → 归一化（clip + z-score）
+  → KronosTokenizer.encode()
+  → 自回归推理（auto_regressive_inference）
+  → KronosTokenizer.decode()
+  → 反归一化
+  → 预测 DataFrame
+```
+
+---
+
 ## 1. 功能来源标注表
 
 | 模块/功能 | 来源 | 源码位置 | 说明 |
@@ -46,7 +114,7 @@
 [open, high, low, close, volume, amount]
 ```
 
-- `volume` 缺失 → 填充 0.0，同时 `amount` 也填充 0.0
+- `volume` 缺失 → 抛出 ValueError（必须提供）
 - 仅 `amount` 缺失而 `volume` 存在 → 估算为 `volume × (open+high+low+close)/4`
 
 ### 2.3 数据量约束
@@ -58,12 +126,27 @@
 | `max_context` | 512（small/base）/ 2048（mini） | 模型上下文窗口长度 |
 | `lookback + pred_len` | ≤ `max_context` | 历史长度加预测长度不能超过上下文窗口 |
 
+### 2.5 批量预测限制
+
+Kronos 代码中没有硬编码的批量大小限制，实际限制由 GPU 显存决定：
+
+| 配置 | 估算最大股票数 | 说明 |
+|------|--------------|------|
+| `sample_count=1, lookback=400, pred_len=120` | ~50-100 | H20 80GB VRAM + Kronos-small |
+| `sample_count=5, lookback=400, pred_len=120` | ~10-20 | 5 倍显存消耗 |
+| `sample_count=1, lookback=400, pred_len=120` + Kronos-base | ~30-50 | 模型权重 ~8GB |
+
+- 批量张量形状：`(B × sample_count, seq_len, 6)`，其中 B = 股票数量
+- 每步自回归推理需对整个 batch 做一次前向传播
+- 超出显存时 PyTorch 抛出 CUDA OOM 错误
+- API 层通过 `MAX_BATCH_SIZE`（默认 50）限制单次批量预测数量
+
 ### 2.4 数据来源
 
 | 方式 | 状态 | 说明 |
 |------|------|------|
 | CSV 文件 | ✅ 可用 | 本地 K 线数据，通过 `data_loader.load_csv()` 加载，支持自动列名映射 |
-| qlib-server | ❌ 不使用 | 已从规划中移除 |
+| qlib 本地目录 | ✅ 可用 | 通过 `data_loader.load_qlib()` 从 qlib 本地数据目录读取 OHLCV+A |
 
 ---
 
@@ -98,15 +181,44 @@ df = load_csv("data.csv")
 1. 读取 CSV 文件
 2. 根据映射表重命名列（大小写不敏感）
 3. 将 `timestamps` 列转换为 datetime 类型
-4. 检查必须列（open/high/low/close），缺失则抛出 ValueError
-5. 填充可选列（volume → 0.0, amount → 0.0）
+4. 检查必须列（open/high/low/close/volume），缺失则抛出 ValueError
+5. 填充可选列（amount → 0.0）
 
-### 3.2 数据获取方式汇总
+### 3.2 qlib 本地目录加载
+
+通过 [data_loader.py](file:///home/zxh/quant_projects/kronos/data_loader.py) 的 `load_qlib()` 函数加载：
+
+```python
+from data_loader import load_qlib
+
+df = load_qlib(
+    symbol="SH600977",
+    start_time="2024-01-01",
+    end_time="2025-05-16",
+    provider_uri="/data02/home/zxh/qlib_local_data/cn_data",
+)
+```
+
+#### qlib 字段自动映射
+
+| qlib 字段 | Kronos 字段 | 说明 |
+|-----------|------------|------|
+| `$open` | `open` | 开盘价 |
+| `$high` | `high` | 最高价 |
+| `$low` | `low` | 最低价 |
+| `$close` | `close` | 收盘价 |
+| `$volume` | `volume` | 成交量 |
+| `$amount` | `amount` | 成交额 |
+| DataFrame 索引 `datetime` | `timestamps` | 日期时间 |
+
+依赖：`pip install pyqlib`
+
+### 3.3 数据获取方式汇总
 
 | 方式 | 状态 | 说明 |
 |------|------|------|
 | CSV 文件 | ✅ 可用 | 本地 K 线数据，通过 `data_loader.load_csv()` 加载，支持自动列名映射 |
-| qlib-server | ❌ 不使用 | 已从规划中移除 |
+| qlib 本地目录 | ✅ 可用 | 通过 `data_loader.load_qlib()` 从 qlib 本地数据目录读取 OHLCV+A |
 
 ---
 
@@ -135,6 +247,7 @@ df = load_csv("data.csv")
 │   │  GET  /api/health          → 健康检查                    │      │
 │   │  GET  /api/model-status    → 模型状态查询                │      │
 │   │  POST /api/predict         → 上传 CSV 执行预测           │      │
+│   │  POST /api/predict-qlib   → 从 qlib 读取数据并预测      │      │
 │   └──────────────────────────┬───────────────────────────────┘      │
 │                               │                                     │
 └───────────────────────────────┼─────────────────────────────────────┘
@@ -148,8 +261,8 @@ df = load_csv("data.csv")
 │   │    [新增]      │  │    [新增]      │  │    [新增]      │       │
 │   │                │  │                │  │                │       │
 │   │ • KronosConfig │  │ • load_csv()   │  │ • LLMAnalyzer  │       │
-│   │ • load_config()│  │ • apply_price_ │  │ • analyze_     │       │
-│   │ • get_device() │  │   limits()     │  │   prediction() │       │
+│   │ • load_config()│  │ • load_qlib()  │  │ • analyze_     │       │
+│   │ • get_device() │  │ • apply_price_ │  │   prediction() │       │
 │   │ • validate()   │  │ • COLUMN_      │  │ • is_available │       │
 │   │ • is_llm_      │  │   MAPPING      │  │                │       │
 │   │   configured() │  │                │  │                │       │
@@ -209,6 +322,14 @@ df = load_csv("data.csv")
 │   │ • 服务端口     │              │                │                │
 │   └────────────────┘              └────────────────┘                │
 │                                                                     │
+│   ┌────────────────────────────────────────────────┐                │
+│   │   qlib 本地数据目录                             │                │
+│   │   /data02/home/zxh/qlib_local_data/cn_data     │                │
+│   │   • features/ (OHLCV+A .day.bin)               │                │
+│   │   • calendars/ (交易日历)                       │                │
+│   │   • instruments/ (股票池)                       │                │
+│   └────────────────────────────────────────────────┘                │
+│                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -233,8 +354,8 @@ df = load_csv("data.csv")
 ┌──────────────────────────────────────────────────────────────────┐
 │                    KronosPredictor.predict()  [自带]              │
 │                                                                  │
-│  1. 校验必须列 (open/high/low/close)                            │
-│  2. 填充可选列 (volume → 0.0, amount → 估算或 0.0)              │
+│  1. 校验必须列 (open/high/low/close/volume)                      │
+│  2. 填充可选列 (amount → 估算或 0.0)                              │
 │  3. z-score 归一化: x_norm = (x - mean) / (std + 1e-5)          │
 │  4. clip 裁剪: x_norm = clip(x_norm, -clip, clip)               │
 │  5. 时间特征提取: [minute, hour, weekday, day, month]            │
@@ -378,6 +499,121 @@ df = load_csv("data.csv")
 - **MPS 精度问题**: PyTorch 在 MPS 设备上使用 `scaled_dot_product_attention` 时存在已知精度问题，可能导致预测结果与 CUDA/CPU 不一致。如需精确结果，建议在 MPS 环境下强制使用 CPU（设置 `KRONOS_DEVICE=cpu`）。
 - **跨设备不可复现**: 即使使用相同种子，不同设备上的随机数生成器（RNG）实现不同，因此预测结果不可跨设备复现。同一设备上设置相同种子可保证可复现性。
 - **GPU 显存管理**: Kronos-small (~4GB) 和 Kronos-base (~8GB) 在 H20 上可轻松运行；Kronos-large (~499M 参数) 需更大显存，暂未开放。
+
+---
+
+## 7. 模块 API 参考
+
+### 7.1 config.py — 配置加载
+
+```python
+from config import KronosConfig
+
+cfg = KronosConfig.load_config()                       # 从 .env 加载
+cfg = KronosConfig.load_config(env_path="/path/.env")   # 指定路径
+cfg = KronosConfig(kronos_model="NeoQuasar/Kronos-base") # 直接构造
+
+cfg.get_device()         # → "cuda:0" / "mps" / "cpu"
+cfg.is_llm_configured()  # → True / False
+cfg.validate()           # → [] (空=无错误)
+```
+
+| 字段 | 类型 | 默认值 | 环境变量 |
+|------|------|--------|---------|
+| `kronos_model` | str | `NeoQuasar/Kronos-small` | `KRONOS_MODEL` |
+| `kronos_tokenizer` | str | `NeoQuasar/Kronos-Tokenizer-base` | `KRONOS_TOKENIZER` |
+| `kronos_device` | str | `auto` | `KRONOS_DEVICE` |
+| `kronos_max_context` | int | 512 | `KRONOS_MAX_CONTEXT` |
+| `kronos_lookback` | int | 400 | `KRONOS_LOOKBACK` |
+| `kronos_pred_len` | int | 120 | `KRONOS_PRED_LEN` |
+| `kronos_temperature` | float | 1.0 | `KRONOS_TEMPERATURE` |
+| `kronos_top_p` | float | 0.9 | `KRONOS_TOP_P` |
+| `kronos_sample_count` | int | 1 | `KRONOS_SAMPLE_COUNT` |
+| `llm_api_base` | str | `https://open.bigmodel.cn/api/paas/v4` | `LLM_API_BASE` |
+| `llm_model_id` | str | `glm-4-flash` | `LLM_MODEL_ID` |
+| `llm_api_key` | str | `""` | `LLM_API_KEY` |
+| `api_host` | str | `0.0.0.0` | `API_HOST` |
+| `api_port` | int | 8000 | `API_PORT` |
+| `qlib_provider_uri` | str | `/data02/home/zxh/qlib_local_data/cn_data` | `QLIB_PROVIDER_URI` |
+| `max_batch_size` | int | 50 | `MAX_BATCH_SIZE` |
+
+### 7.2 data_loader.py — 数据加载
+
+```python
+from data_loader import load_csv, load_qlib, apply_price_limits
+
+df = load_csv("data.csv")
+# → DataFrame [timestamps, open, high, low, close, volume, amount]
+# 必须列: open, high, low, close, volume
+# 可选列: amount (缺失填充 0.0)
+# 异常: ValueError (缺少必须列)
+
+df = load_qlib(symbol="SH600977", start_time="2024-01-01", end_time="2025-05-16")
+# → DataFrame [timestamps, open, high, low, close, volume, amount]
+# 异常: ValueError (qlib 空数据), ImportError (pyqlib 未安装)
+
+pred_df = apply_price_limits(pred_df, last_close=10.0, limit_rate=0.1)
+# → 处理后的 DataFrame，open/high/low/close 裁剪到 ±limit_rate
+```
+
+### 7.3 llm_analyzer.py — LLM 分析
+
+```python
+from llm_analyzer import LLMAnalyzer
+
+analyzer = LLMAnalyzer(
+    api_base="https://open.bigmodel.cn/api/paas/v4",
+    model_id="glm-4-flash",
+    api_key="your-api-key",
+)
+
+analyzer.is_available()  # → True / False
+
+result = analyzer.analyze_prediction(pred_df, last_close=10.0, symbol="SH600977")
+# → {"trend": "...", "support_resistance": "...", "advice": "...", "risk": "..."}
+# → None (LLM 不可用 / 调用失败)
+```
+
+| 提供商 | api_base | model_id 示例 |
+|--------|----------|--------------|
+| 智谱 | `https://open.bigmodel.cn/api/paas/v4` | `glm-4-flash` |
+| 火山引擎 | `https://ark.cn-beijing.volces.com/api/v3` | CodingPlan 模型 ID |
+
+### 7.4 api.py — REST API
+
+启动：`uvicorn api:app --host 0.0.0.0 --port 8000`
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `GET /api/health` | GET | 健康检查 |
+| `GET /api/model-status` | GET | 模型状态 |
+| `POST /api/predict` | POST | 上传 CSV 预测 |
+| `POST /api/predict-qlib` | POST | 从 qlib 读取数据预测 |
+
+`POST /api/predict` 参数：`file`(File,必填), `symbol`, `lookback`, `pred_len`, `temperature`, `top_p`, `sample_count`
+
+`POST /api/predict-qlib` 参数：`symbol`(str,必填), `start_time`, `end_time`, `lookback`, `pred_len`, `temperature`, `top_p`, `sample_count`
+
+响应格式：
+```json
+{
+  "success": true,
+  "prediction": [{"open": ..., "high": ..., "low": ..., "close": ..., "volume": ..., "amount": ...}],
+  "analysis": {"trend": "...", "support_resistance": "...", "advice": "...", "risk": "..."},
+  "params": {"lookback": 400, "pred_len": 120, "temperature": 1.0, "top_p": 0.9, "sample_count": 1, "symbol": "..."}
+}
+```
+
+错误码：200(成功), 400(数据问题), 503(模型/pyqlib 未就绪)
+
+跨环境调用（推荐，避免依赖冲突）：
+```python
+import requests
+resp = requests.post("http://localhost:8000/api/predict-qlib", data={
+    "symbol": "SH600977", "start_time": "2024-01-01", "end_time": "2025-05-16",
+})
+result = resp.json()
+```
 
 ---
 
