@@ -47,19 +47,18 @@ def load_qlib(
     freq: str = "day",
 ) -> pd.DataFrame:
     try:
-        import qlib
+        from qlib import init as qlib_init
         from qlib.data import D
     except ImportError:
         raise ImportError(
             "pyqlib is not installed. Install it with: pip install pyqlib"
         )
 
-    if not qlib.is_initialized():
-        qlib.init(provider_uri=provider_uri, region="cn")
+    qlib_init(provider_uri=provider_uri, region="cn")
 
     fields = ["$open", "$high", "$low", "$close", "$volume", "$amount"]
     raw = D.features(
-        instruments=symbol.lower(),
+        instruments=[symbol.upper()],
         fields=fields,
         start_time=start_time,
         end_time=end_time,
@@ -72,6 +71,9 @@ def load_qlib(
     raw.columns = [c.lstrip("$") for c in raw.columns]
     raw = raw.reset_index()
     raw.rename(columns={"datetime": "timestamps"}, inplace=True)
+
+    if "instrument" in raw.columns:
+        raw = raw.drop(columns=["instrument"])
 
     missing = [col for col in REQUIRED_COLUMNS if col not in raw.columns]
     if missing:

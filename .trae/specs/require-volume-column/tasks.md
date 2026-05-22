@@ -15,9 +15,9 @@
   - [x] SubTask 3.1: 新增 `POST /api/predict-qlib` 端点（symbol, start_time, end_time 参数）
   - [x] SubTask 3.2: qlib 未安装时返回 503 提示
 
-- [ ] Task 4: 安装 pyqlib 依赖
-  - [ ] SubTask 4.1: 在 kronos conda 环境中安装 pyqlib
-  - [ ] SubTask 4.2: 验证 qlib 数据可正常读取
+- [x] Task 4: 安装 pyqlib 依赖
+  - [x] SubTask 4.1: 在 kronos conda 环境中安装 pyqlib
+  - [x] SubTask 4.2: 验证 qlib 数据可正常读取
 
 - [ ] Task 5: 更新文档
   - [ ] SubTask 5.1: 更新 `kronos_rules.md` 数据格式要求章节（volume 必填 + qlib 数据源）
