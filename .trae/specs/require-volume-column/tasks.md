@@ -19,9 +19,9 @@
   - [x] SubTask 4.1: 在 kronos conda 环境中安装 pyqlib
   - [x] SubTask 4.2: 验证 qlib 数据可正常读取
 
-- [ ] Task 5: 更新文档
-  - [ ] SubTask 5.1: 更新 `kronos_rules.md` 数据格式要求章节（volume 必填 + qlib 数据源）
-  - [ ] SubTask 5.2: 更新 `design.md` 输入数据要求和数据获取方式章节
+- [x] Task 5: 更新文档
+  - [x] SubTask 5.1: 更新 `kronos_rules.md` 数据格式要求章节（volume 必填 + qlib 数据源）
+  - [x] SubTask 5.2: 更新 `design.md` 输入数据要求和数据获取方式章节
 
 - [ ] Task 6: 验证并提交
   - [ ] SubTask 6.1: 验证不含 volume 的 CSV 加载时抛出 ValueError

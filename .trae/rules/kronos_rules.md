@@ -104,12 +104,12 @@ predictor = KronosPredictor(model, tokenizer, max_context=512)
 
 ### 4. 数据格式要求
 
-- **必须列**: `open`, `high`, `low`, `close`（缺失会抛出 ValueError）
-- **可选列**: `volume`（缺失时填充 0.0）、`amount`（缺失时自动估算或填充 0.0）
+- **必须列**: `open`, `high`, `low`, `close`, `volume`（缺失会抛出 ValueError）
+- **可选列**: `amount`（缺失时自动估算或填充 0.0）
 - **时间列**: `timestamps` 或 `date`（需为 datetime 类型）
 - **推荐 lookback**: 400（small/base 模型 max_context=512）
 - **推荐 pred_len**: 20-120
-- **模型内部维度**: 始终为 6 维 `[open, high, low, close, volume, amount]`，`volume`/`amount` 缺失时自动补全
+- **模型内部维度**: 始终为 6 维 `[open, high, low, close, volume, amount]`，`volume` 为必填，`amount` 缺失时自动补全
 
 ### 5. 单序列预测 — `predict()`
 
@@ -231,7 +231,60 @@ last_close = df['close'].iloc[-1]
 pred_df = apply_price_limits(pred_df, last_close, limit_rate=0.1)
 ```
 
-### 9. 完整预测流程示例
+### 9. 从 qlib 本地目录读取数据并预测
+
+```python
+import sys
+import pandas as pd
+sys.path.insert(0, "/home/zxh/quant_projects/kronos")
+from model import Kronos, KronosTokenizer, KronosPredictor
+from data_loader import load_qlib, apply_price_limits
+
+df = load_qlib(
+    symbol="SH600977",
+    start_time="2024-01-01",
+    end_time="2025-05-16",
+    provider_uri="/data02/home/zxh/qlib_local_data/cn_data",
+)
+
+tokenizer = KronosTokenizer.from_pretrained("NeoQuasar/Kronos-Tokenizer-base")
+model = Kronos.from_pretrained("NeoQuasar/Kronos-small")
+predictor = KronosPredictor(model, tokenizer, max_context=512)
+
+lookback = 400
+pred_len = 120
+
+x_df = df.iloc[-lookback:][["open", "high", "low", "close", "volume", "amount"]]
+x_timestamp = df.iloc[-lookback:]["timestamps"]
+y_timestamp = pd.bdate_range(
+    start=df["timestamps"].iloc[-1] + pd.Timedelta(days=1),
+    periods=pred_len
+)
+
+pred_df = predictor.predict(
+    df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp,
+    pred_len=pred_len, T=1.0, top_p=0.9, sample_count=1, verbose=True
+)
+
+last_close = df["close"].iloc[-1]
+pred_df = apply_price_limits(pred_df, last_close, limit_rate=0.1)
+```
+
+qlib 字段自动映射：
+
+| qlib 字段 | Kronos 字段 | 说明 |
+|-----------|------------|------|
+| `$open` | `open` | 开盘价 |
+| `$high` | `high` | 最高价 |
+| `$low` | `low` | 最低价 |
+| `$close` | `close` | 收盘价 |
+| `$volume` | `volume` | 成交量 |
+| `$amount` | `amount` | 成交额 |
+| DataFrame 索引 | `timestamps` | 日期时间 |
+
+依赖：`pip install pyqlib`
+
+### 10. 完整预测流程示例
 
 ```python
 import sys

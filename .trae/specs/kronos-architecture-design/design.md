@@ -34,7 +34,7 @@
 | 价格列 | `high` | ✅ 必须 | 缺失抛出 ValueError | 最高价 |
 | 价格列 | `low` | ✅ 必须 | 缺失抛出 ValueError | 最低价 |
 | 价格列 | `close` | ✅ 必须 | 缺失抛出 ValueError | 收盘价 |
-| 交易列 | `volume` | ❌ 可选 | 填充 0.0 | 成交量 |
+| 交易列 | `volume` | ✅ 必须 | 缺失抛出 ValueError | 成交量 |
 | 交易列 | `amount` | ❌ 可选 | volume 存在时估算为 `volume × 均价`，否则填充 0.0 | 成交额 |
 | 时间列 | `timestamps` 或 `date` | ❌ 可选 | 需为 datetime 类型 | 时间戳，用于生成时间嵌入 |
 
