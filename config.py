@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 @dataclass
 class KronosConfig:
-    kronos_model: str = "NeoQuasar/Kronos-small"
+    kronos_model: str = "NeoQuasar/Kronos-base"
     kronos_tokenizer: str = "NeoQuasar/Kronos-Tokenizer-base"
     kronos_device: str = "auto"
     kronos_max_context: int = 512
@@ -22,8 +22,9 @@ class KronosConfig:
     llm_api_key: str = ""
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    qlib_provider_uri: str = "/data02/home/zxh/qlib_local_data/cn_data"
+    qlib_provider_uri: str = "/home/zxh/qlib_data"
     max_batch_size: int = 50
+    output_dir: str = "/home/zxh/quant_projects/kronos/outputs"
 
     _ENV_MAP: Dict[str, str] = field(
         default_factory=lambda: {
@@ -43,6 +44,7 @@ class KronosConfig:
             "api_port": "API_PORT",
             "qlib_provider_uri": "QLIB_PROVIDER_URI",
             "max_batch_size": "MAX_BATCH_SIZE",
+            "output_dir": "OUTPUT_DIR",
         },
         repr=False,
         compare=False,
@@ -81,7 +83,7 @@ class KronosConfig:
                 "kronos_max_context": 512,
                 "kronos_lookback": 400,
                 "kronos_pred_len": 120,
-                "max_batch_size": 30,
+                "max_batch_size": 50,
             },
         },
         repr=False,
@@ -168,6 +170,8 @@ class KronosConfig:
             errors.append("api_port must be between 1 and 65535")
         if self.max_batch_size < 1:
             errors.append("max_batch_size must be at least 1")
+        if not self.output_dir:
+            errors.append("output_dir must not be empty")
 
         resolved_device = self.get_device()
         if resolved_device.startswith("cuda"):

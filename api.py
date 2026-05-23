@@ -1,7 +1,9 @@
+import json
 import os
 import shutil
 import tempfile
 import uuid
+from datetime import datetime
 from typing import Optional
 
 import pandas as pd
@@ -25,11 +27,35 @@ _model_loaded: bool = False
 _model_error: Optional[str] = None
 
 
+def _save_prediction(pred_df: pd.DataFrame, symbol: str, params: dict) -> None:
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    safe_symbol = symbol if symbol else "unknown"
+    save_dir = os.path.join(_config.output_dir, date_str, safe_symbol)
+    os.makedirs(save_dir, exist_ok=True)
+
+    csv_path = os.path.join(save_dir, "prediction.csv")
+    pred_df.to_csv(csv_path)
+
+    meta = {
+        "symbol": safe_symbol,
+        "timestamp": datetime.now().isoformat(),
+        "lookback": params.get("lookback"),
+        "pred_len": params.get("pred_len"),
+        "temperature": params.get("temperature"),
+        "top_p": params.get("top_p"),
+        "sample_count": params.get("sample_count"),
+    }
+    meta_path = os.path.join(save_dir, "meta.json")
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2, ensure_ascii=False)
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     global _config, _predictor, _llm_analyzer, _model_loaded, _model_error
 
     _config = KronosConfig.load_config()
+    os.makedirs(_config.output_dir, exist_ok=True)
 
     errors = _config.validate()
     if errors:
@@ -147,7 +173,16 @@ async def predict(
     )
 
     last_close = float(df["close"].iloc[-1])
-    pred_df = apply_price_limits(pred_df, last_close, limit_rate=0.1)
+    pred_df = apply_price_limits(pred_df, last_close, symbol=symbol)
+
+    save_params = {
+        "lookback": effective_lookback,
+        "pred_len": effective_pred_len,
+        "temperature": effective_temperature,
+        "top_p": effective_top_p,
+        "sample_count": effective_sample_count,
+    }
+    _save_prediction(pred_df, symbol or "", save_params)
 
     analysis: Optional[dict] = None
     if _llm_analyzer is not None and _llm_analyzer.is_available():
@@ -247,7 +282,16 @@ async def predict_qlib(
     )
 
     last_close = float(df["close"].iloc[-1])
-    pred_df = apply_price_limits(pred_df, last_close, limit_rate=0.1)
+    pred_df = apply_price_limits(pred_df, last_close, symbol=symbol)
+
+    save_params = {
+        "lookback": effective_lookback,
+        "pred_len": effective_pred_len,
+        "temperature": effective_temperature,
+        "top_p": effective_top_p,
+        "sample_count": effective_sample_count,
+    }
+    _save_prediction(pred_df, symbol, save_params)
 
     analysis: Optional[dict] = None
     if _llm_analyzer is not None and _llm_analyzer.is_available():
