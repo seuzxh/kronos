@@ -57,6 +57,37 @@ class KronosConfig:
         "kronos_temperature", "kronos_top_p",
     })
 
+    MODEL_PRESETS: Dict[str, Dict] = field(
+        default_factory=lambda: {
+            "mini": {
+                "kronos_model": "NeoQuasar/Kronos-mini",
+                "kronos_tokenizer": "NeoQuasar/Kronos-Tokenizer-2k",
+                "kronos_max_context": 2048,
+                "kronos_lookback": 400,
+                "kronos_pred_len": 120,
+                "max_batch_size": 100,
+            },
+            "small": {
+                "kronos_model": "NeoQuasar/Kronos-small",
+                "kronos_tokenizer": "NeoQuasar/Kronos-Tokenizer-base",
+                "kronos_max_context": 512,
+                "kronos_lookback": 400,
+                "kronos_pred_len": 120,
+                "max_batch_size": 50,
+            },
+            "base": {
+                "kronos_model": "NeoQuasar/Kronos-base",
+                "kronos_tokenizer": "NeoQuasar/Kronos-Tokenizer-base",
+                "kronos_max_context": 512,
+                "kronos_lookback": 400,
+                "kronos_pred_len": 120,
+                "max_batch_size": 30,
+            },
+        },
+        repr=False,
+        compare=False,
+    )
+
     @classmethod
     def load_config(cls, env_path: Optional[str] = None) -> "KronosConfig":
         if env_path is not None:
@@ -93,6 +124,23 @@ class KronosConfig:
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return "mps"
         return "cpu"
+
+    def detect_model_variant(self) -> Optional[str]:
+        model_lower = self.kronos_model.lower()
+        for variant in self.MODEL_PRESETS:
+            if variant in model_lower:
+                return variant
+        return None
+
+    def apply_preset(self, variant: str) -> None:
+        if variant not in self.MODEL_PRESETS:
+            raise ValueError(
+                f"Unknown variant '{variant}', available: "
+                f"{list(self.MODEL_PRESETS.keys())}"
+            )
+        preset = self.MODEL_PRESETS[variant]
+        for key, value in preset.items():
+            setattr(self, key, value)
 
     def is_llm_configured(self) -> bool:
         return bool(self.llm_api_key and self.llm_api_key.strip())
