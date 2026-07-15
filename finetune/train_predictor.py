@@ -9,12 +9,26 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-import comet_ml
+# comet_ml 改为条件导入(高贝塔配置 use_comet=False 时不强制安装)
+try:
+    import comet_ml
+except ImportError:
+    comet_ml = None
 
 # Ensure project root is in path
 sys.path.append('../')
-from config import Config
-from dataset import QlibDataset
+
+# 配置切换: 环境变量 KRONOS_CONFIG 决定用哪个配置模块
+_KRONOS_CONFIG = os.environ.get('KRONOS_CONFIG', 'config')
+_KRONOS_FOLD = os.environ.get('KRONOS_FOLD', None)   # None 表示原固定切分
+
+if _KRONOS_CONFIG == 'config_highbeta':
+    from config_highbeta import Config
+    from dataset import HighbetaDataset
+else:
+    from config import Config
+    from dataset import QlibDataset
+
 from model.kronos import KronosTokenizer, Kronos
 # Import shared utilities
 from utils.training_utils import (
@@ -39,8 +53,13 @@ def create_dataloaders(config: dict, rank: int, world_size: int):
         tuple: (train_loader, val_loader, train_dataset, valid_dataset).
     """
     print(f"[Rank {rank}] Creating distributed dataloaders...")
-    train_dataset = QlibDataset('train')
-    valid_dataset = QlibDataset('val')
+    if _KRONOS_CONFIG == 'config_highbeta':
+        fold = config.get('_fold', _KRONOS_FOLD or '0')
+        train_dataset = HighbetaDataset('train', fold=fold)
+        valid_dataset = HighbetaDataset('val', fold=fold)
+    else:
+        train_dataset = QlibDataset('train')
+        valid_dataset = QlibDataset('val')
     print(f"[Rank {rank}] Train dataset size: {len(train_dataset)}, Validation dataset size: {len(valid_dataset)}")
 
     train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
@@ -185,7 +204,16 @@ def main(config: dict):
     device = torch.device(f"cuda:{local_rank}")
     set_seed(config['seed'], rank)
 
-    save_dir = os.path.join(config['save_path'], config['predictor_save_folder_name'])
+    # 保存路径: 高贝塔模式含 fold, 避免各折互相覆盖
+    fold = config.get('_fold')
+    if _KRONOS_CONFIG == 'config_highbeta' and fold is not None:
+        save_dir = os.path.join(config['save_path'], f"fold{fold}",
+                                config['predictor_save_folder_name'])
+        # 高贝塔模式: tokenizer 先用预训练的(不单独训练)
+        tokenizer_load_path = config['pretrained_tokenizer_path']
+    else:
+        save_dir = os.path.join(config['save_path'], config['predictor_save_folder_name'])
+        tokenizer_load_path = config['finetuned_tokenizer_path']
 
     # Logger and summary setup (master process only)
     comet_logger, master_summary = None, {}
@@ -195,8 +223,9 @@ def main(config: dict):
             'start_time': strftime("%Y-%m-%dT%H-%M-%S", gmtime()),
             'save_directory': save_dir,
             'world_size': world_size,
+            'fold': fold,
         }
-        if config['use_comet']:
+        if config['use_comet'] and comet_ml is not None:
             comet_logger = comet_ml.Experiment(
                 api_key=config['comet_config']['api_key'],
                 project_name=config['comet_config']['project_name'],
@@ -210,7 +239,7 @@ def main(config: dict):
     dist.barrier()
 
     # Model Initialization
-    tokenizer = KronosTokenizer.from_pretrained(config['finetuned_tokenizer_path'])
+    tokenizer = KronosTokenizer.from_pretrained(tokenizer_load_path)
     tokenizer.eval().to(device)
 
     model = Kronos.from_pretrained(config['pretrained_predictor_path'])
@@ -241,4 +270,7 @@ if __name__ == '__main__':
         raise RuntimeError("This script must be launched with `torchrun`.")
 
     config_instance = Config()
-    main(config_instance.__dict__)
+    config_dict = config_instance.__dict__
+    # 注入 fold 到 config, 供 create_dataloaders 和保存路径使用
+    config_dict['_fold'] = _KRONOS_FOLD
+    main(config_dict)
