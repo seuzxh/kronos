@@ -156,3 +156,46 @@
 3. **跨日连续性**: pickle中每股票序列是否保留了跨日(隔夜缺口),没有被错误截断
 4. **归一化**: dataset.py 仍只用lookback段算mean/std(防泄露)
 5. **样本shape**: 应为 (289,6)+(289,5),289=240+48+1
+
+---
+
+## 明天如何继续 (操作指引)
+
+### 1. 确认预处理产物
+```bash
+cd /home/zxh/projects/Kronos/finetune
+ls data/highbeta_5min/        # 应有 fold0-3, full 目录
+# 验证数据
+python check_data.py --fold 0
+python check_data.py --fold full
+```
+
+### 2. 跑 smoke test (验证训练管线, ~1分钟, 单GPU)
+```bash
+KRONOS_FOLD=0 python smoke_test.py
+# 期望输出: ✅ Smoke test 通过
+```
+
+### 3. 启动4折CV训练 (~每折2-4小时, 4卡)
+```bash
+# 单独训练某折
+bash run_cv.sh train 0
+# 或顺序训练全部4折
+bash run_cv.sh train-all
+```
+
+### 4. 检查各折 val_loss, 选最优配置
+```bash
+# 各折 summary.json 在 outputs/highbeta_5min/fold{N}/finetune_predictor/
+cat outputs/highbeta_5min/fold0/finetune_predictor/summary.json
+```
+
+### 5. 训练最终全量模型
+```bash
+bash run_cv.sh train-final
+```
+
+### 当前状态 (2026-07-16 02:40)
+- 代码: 全部完成并提交 (commit on feat/highbeta-5min-finetune)
+- 数据: 全量预处理后台运行中 (5114只, 约27分钟, 预计02:50完成)
+- 待办: 预处理完成后跑 check_data + smoke_test 验证
