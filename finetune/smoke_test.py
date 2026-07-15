@@ -15,6 +15,8 @@ import sys
 import torch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 项目根目录 (model 包在根目录)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('KRONOS_CONFIG', 'config_highbeta')
 os.environ.setdefault('HF_HUB_OFFLINE', '1')
 

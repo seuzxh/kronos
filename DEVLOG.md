@@ -195,10 +195,43 @@ cat outputs/highbeta_5min/fold0/finetune_predictor/summary.json
 bash run_cv.sh train-final
 ```
 
-### 当前状态 (2026-07-16 02:40)
-- 代码: 全部完成并提交 (commit on feat/highbeta-5min-finetune)
-- 数据: 全量预处理后台运行中 (5114只, 约27分钟, 预计02:50完成)
-- 待办: 预处理完成后跑 check_data + smoke_test 验证
+### 当前状态 (2026-07-16 03:00) ✅ 全部完成
+- 代码: 全部完成并提交 (分支 feat/highbeta-5min-finetune)
+- 数据: 全量预处理完成 (5038只, 1.44亿根5min, 27分钟)
+- 验证: check_data + smoke_test 全部通过
+- **待办(明天)**: 启动4折CV训练 `bash run_cv.sh train-all`
+
+### 全量预处理结果
+```
+5038只股票 (5114只中有76只无1min数据被跳过)
+总5min K线: 144,195,649 根
+耗时: 1633秒 (27分钟)
+各折:
+  fold0: train 5015只 / val 5022只 [2026-03-16~04-13]
+  fold1: train 5023只 / val 5029只 [2026-04-14~05-14]
+  fold2: train 5030只 / val 5029只 [2026-05-15~06-11]
+  fold3: train 5036只 / val 5035只 [2026-06-12~07-10]
+  full:  5038只 [全量]
+产物大小: 每折 train~3.8-4.3GB, val~150MB
+```
+
+### check_data 验证结果 (fold0)
+```
+[fold0/train] 股票数: 5015, 总124,453,729根, 可用窗口123,009,409
+  OHLC一致性违规: 0 ✅
+  时间范围: 2024-01-02 ~ 2026-03-13
+[fold0/val] 股票数: 5022, 可用窗口3,363,072
+  验证段全部48根/天 ✅
+```
+
+### smoke_test 验证结果 ✅ 训练管线可正常运行
+```
+HighbetaDataset: 1.23亿候选窗口, 每epoch采样32000
+Tokenizer加载: d_in=6 ✅
+前向: (1,289,6) → tokenize(1,289) → logits(1,288,1024) ✅
+Loss: 2.3481 (s1: 2.7430, s2: 1.9533) ✅
+所有维度正确, 训练管线就绪
+```
 
 ### ⚠️ 数据异常发现 (check_data 验证)
 2024年初部分交易日5min根数≠48:
