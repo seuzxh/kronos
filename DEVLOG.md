@@ -199,3 +199,12 @@ bash run_cv.sh train-final
 - 代码: 全部完成并提交 (commit on feat/highbeta-5min-finetune)
 - 数据: 全量预处理后台运行中 (5114只, 约27分钟, 预计02:50完成)
 - 待办: 预处理完成后跑 check_data + smoke_test 验证
+
+### ⚠️ 数据异常发现 (check_data 验证)
+2024年初部分交易日5min根数≠48:
+- 2024-01-03: 12根 (应为48)
+- 2024-01-12: 17根
+- 原因推测: 2024年初1min数据不完整(半天或数据缺失)
+- **影响**: 极小。dataset.py 的窗口切片要求 window=289, 这些短日会被自然跳过
+  (num_samples = series_len - window + 1, 短日贡献0或极少窗口)
+- **无需处理**, 仅记录
