@@ -147,12 +147,16 @@ class Config:
         self.inference_sample_count = 20  # 多次采样取均值,降噪
 
     def get_cv_fold_dir(self, fold):
-        """返回某折的数据目录路径。fold ∈ {0,1,2,3,'full'}."""
-        return f"{self.dataset_path}/fold{fold}"
+        """返回某折的数据目录路径。fold ∈ {0,1,2,3,'full'}.
+        注意: 'full' 不带 fold 前缀 (与 preprocess_5min.py 的 split_and_save_cv 一致)。
+        """
+        suffix = str(fold) if fold == 'full' else f"fold{fold}"
+        return f"{self.dataset_path}/{suffix}"
 
     def get_cv_save_dir(self, fold):
         """返回某折的模型保存目录。fold ∈ {0,1,2,3,'full'}."""
-        return f"{self.save_path}/fold{fold}"
+        suffix = str(fold) if fold == 'full' else f"fold{fold}"
+        return f"{self.save_path}/{suffix}"
 
 
 if __name__ == '__main__':

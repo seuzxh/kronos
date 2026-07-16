@@ -56,7 +56,11 @@ def create_dataloaders(config: dict, rank: int, world_size: int):
     if _KRONOS_CONFIG == 'config_highbeta':
         fold = config.get('_fold', _KRONOS_FOLD or '0')
         train_dataset = HighbetaDataset('train', fold=fold)
-        valid_dataset = HighbetaDataset('val', fold=fold)
+        # full 模式无独立 val (preprocess 只生成 full/train), 复用 fold3 的 val(最近行情)
+        val_fold = '3' if fold == 'full' else fold
+        if fold == 'full':
+            print(f"[Rank {rank}] full 模式: 验证集复用 fold3 (最近20天行情)")
+        valid_dataset = HighbetaDataset('val', fold=val_fold)
     else:
         train_dataset = QlibDataset('train')
         valid_dataset = QlibDataset('val')
@@ -207,7 +211,9 @@ def main(config: dict):
     # 保存路径: 高贝塔模式含 fold, 避免各折互相覆盖
     fold = config.get('_fold')
     if _KRONOS_CONFIG == 'config_highbeta' and fold is not None:
-        save_dir = os.path.join(config['save_path'], f"fold{fold}",
+        # 'full' 不带 fold 前缀 (与 get_cv_fold_dir / preprocess 一致)
+        fold_suffix = str(fold) if fold == 'full' else f"fold{fold}"
+        save_dir = os.path.join(config['save_path'], fold_suffix,
                                 config['predictor_save_folder_name'])
         # 高贝塔模式: tokenizer 先用预训练的(不单独训练)
         tokenizer_load_path = config['pretrained_tokenizer_path']

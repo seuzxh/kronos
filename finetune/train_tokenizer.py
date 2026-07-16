@@ -245,7 +245,8 @@ def main(config: dict):
     # 保存路径: 高贝塔模式含 fold
     fold = config.get('_fold')
     if _KRONOS_CONFIG == 'config_highbeta' and fold is not None:
-        save_dir = os.path.join(config['save_path'], f"fold{fold}",
+        fold_suffix = str(fold) if fold == 'full' else f"fold{fold}"
+        save_dir = os.path.join(config['save_path'], fold_suffix,
                                 config['tokenizer_save_folder_name'])
     else:
         save_dir = os.path.join(config['save_path'], config['tokenizer_save_folder_name'])
