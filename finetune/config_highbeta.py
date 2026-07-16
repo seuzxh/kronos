@@ -69,12 +69,14 @@ class Config:
 
         self.epochs = 8
         self.log_interval = 100
-        # 5min 序列长(289),显存敏感,batch 调小
-        self.batch_size = 16
+        # 5min 序列长(289), 但模型仅102M, 实测显存:
+        # batch=8→2.54GB, batch=16→4.58GB, batch=32→8.76GB (每卡)
+        # sglang 占84GB/卡, 剩余~13GB, batch=32 安全
+        self.batch_size = 32
 
         # 每 epoch 采样数 (按 batch 倍数定义,非全量遍历)
-        self.n_train_iter = 2000 * self.batch_size   # 32000 样本/epoch
-        self.n_val_iter = 400 * self.batch_size      # 6400 样本/epoch
+        self.n_train_iter = 2000 * self.batch_size   # 64000 样本/epoch
+        self.n_val_iter = 400 * self.batch_size      # 12800 样本/epoch
 
         self.num_workers = 8
 

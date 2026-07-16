@@ -40,6 +40,15 @@ TORCHRUN="$PYTHON -m torch.distributed.run"
 # DDP 参数 (standalone 模式)
 DDP_FLAGS="--standalone --nproc_per_node=$NGPU"
 
+# NCCL 配置: sglang 共存必需 (禁用P2P/IB/SHM, 否则 CUDA context 冲突)
+# 验证: all_reduce + barrier 测试通过 (2026-07-16)
+export NCCL_P2P_DISABLE=1
+export NCCL_IB_DISABLE=1
+export NCCL_SHM_DISABLE=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+export PYTHONUNBUFFERED=1
+
 STAGE=${1:-all}
 FOLD=${2:-}
 
