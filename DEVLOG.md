@@ -195,11 +195,20 @@ cat outputs/highbeta_5min/fold0/finetune_predictor/summary.json
 bash run_cv.sh train-final
 ```
 
-### 当前状态 (2026-07-16 03:00) ✅ 全部完成
-- 代码: 全部完成并提交 (分支 feat/highbeta-5min-finetune)
-- 数据: 全量预处理完成 (5038只, 1.44亿根5min, 27分钟)
-- 验证: check_data + smoke_test 全部通过
-- **待办(明天)**: 启动4折CV训练 `bash run_cv.sh train-all`
+### 当前状态 (2026-07-16 13:00) ✅ 全部训练完成
+- 4折CV + 最终全量模型: 全部训练完成
+- 最终模型 Val Loss = 2.1964, 4折平均 2.2159
+- 完整分析报告: outputs/highbeta_5min/TRAINING_REPORT.md
+
+### 训练最终结果
+```
+fold0: Val 2.1887  (2026-03~04) ← 最佳单折
+fold1: Val 2.1966  (2026-04~05)
+fold2: Val 2.2780  (2026-05~06) ⚠️ 异常偏高(市场波动期)
+fold3: Val 2.2002  (2026-06~07)
+full:  Val 2.1964  (全量训练, 复用fold3验证) ← 推荐上线
+```
+关键结论: 微调有效(zero-shot 2.35→2.19), 无过拟合, fold2偏高提示不同市场阶段难度差异大。
 
 ### 全量预处理结果
 ```
