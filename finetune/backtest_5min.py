@@ -200,10 +200,12 @@ def run_daily_prediction_backtest(
             # z-score 归一化 (仅用lookback段统计量, 与训练一致)
             x_mean = x.mean(axis=0)
             x_std = x.std(axis=0)
-            x = (x - x_mean) / (x_std + 1e-5)
-            x = np.clip(x, -cfg.clip, cfg.clip)
+            # 保存真实末根close (反归一化用)
+            last_close_real = x[-1, 3]
+            x_norm = (x - x_mean) / (x_std + 1e-5)
+            x_norm = np.clip(x_norm, -cfg.clip, cfg.clip)
 
-            x_batch_list.append((x, x_st))
+            x_batch_list.append((x_norm, x_st, x_mean[3], x_std[3], last_close_real))
             valid_symbols.append(s)
 
         if len(valid_symbols) < topk:
@@ -214,6 +216,8 @@ def run_daily_prediction_backtest(
             batch_syms = valid_symbols[bi:bi+batch_size]
             batch_x = [x_batch_list[bi+j][0] for j in range(len(batch_syms))]
             batch_xs = [x_batch_list[bi+j][1] for j in range(len(batch_syms))]
+            batch_close_std = [x_batch_list[bi+j][3] for j in range(len(batch_syms))]
+            batch_last_close = [x_batch_list[bi+j][4] for j in range(len(batch_syms))]
 
             x_arr = np.stack(batch_x)   # (B, 240, 6)
             xs_arr = np.stack(batch_xs)  # (B, 240, 5)
@@ -229,13 +233,16 @@ def run_daily_prediction_backtest(
                     top_p=cfg.inference_top_p, sample_count=sample_count
                 )
             # preds: (B, 48, 6), close在index 3
-            # 信号: 预测的当日最后一根close 相对 lookback最后一根close
-            # 注意: preds是归一化空间的, 需还原。但排序只需相对值,
-            # 用 preds[:,-1,3] (预测末根close, 归一化空间) 作为信号即可
-            # (所有股票的lookback末根close归一化后都是0附近, 预测值越大=预期涨越多)
-            pred_close_last = preds[:, -1, 3]   # (B,) numpy array
-            for j, s in enumerate(batch_syms):
-                predictions[s] = pred_close_last[j]
+            # 信号修复: 反归一化到真实价格, 算预测涨幅
+            # pred_close_real = pred_norm * std + mean
+            # 涨幅 = pred_close_real / last_close_real - 1
+            for j in range(len(batch_syms)):
+                pred_close_norm = preds[j, -1, 3]   # 预测末根close(归一化)
+                std = batch_close_std[j]
+                pred_close_real = pred_close_norm * std + x_batch_list[bi+j][2]  # mean[3]
+                last_real = batch_last_close[j]
+                predicted_return = (pred_close_real - last_real) / (last_real + 1e-8)
+                predictions[batch_syms[j]] = predicted_return
 
         if len(predictions) < topk:
             continue
