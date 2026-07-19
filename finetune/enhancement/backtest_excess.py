@@ -200,12 +200,19 @@ def compute_actual_excess_returns(stock_df, idx_df, t_idx, predict_window):
     return (stock_return, index_return, excess_return)
 
 
-def backtest_fold(fold, cfg):
-    """对单折做超额收益回测 + RankIC 评估"""
+def backtest_fold(fold, cfg, max_stocks=None, max_days=None):
+    """对单折做超额收益回测 + RankIC 评估
+
+    Args:
+        fold: 折号(0/1/2/3/'full')
+        cfg: 配置
+        max_stocks: 限制评估股票数(小样本快速验证用,None=全量)
+        max_days: 限制评估日数(None=全量)
+    """
     import torch
 
     print(f"\n{'='*60}")
-    print(f"回测 fold={fold}")
+    print(f"回测 fold={fold}" + (f" [小样本: {max_stocks}股]" if max_stocks else " [全量]"))
     print(f"{'='*60}")
 
     # 1. 加载验证段数据(直接用 preprocess 产物的 val_daily.pkl)
@@ -222,7 +229,15 @@ def backtest_fold(fold, cfg):
     import pickle
     with open(val_pkl, "rb") as f:
         val_data = pickle.load(f)
-    print(f"  验证股票数: {len(val_data)}")
+
+    # 小样本:随机抽 max_stocks 只(可复现)
+    if max_stocks and max_stocks < len(val_data):
+        import random
+        rng = random.Random(42)
+        keys = rng.sample(list(val_data.keys()), max_stocks)
+        val_data = {k: val_data[k] for k in keys}
+
+    print(f"  评估股票数: {len(val_data)}")
 
     # 2. 加载指数行情
     idx_df = pd.read_csv(cfg.index_csv)
@@ -245,6 +260,8 @@ def backtest_fold(fold, cfg):
     # 验证段每个交易日做一次预测(为了控制时间,每隔 N 天采样)
     # predict_window=5,所以每 5 天预测一次避免重叠
     eval_dates = val_dates[lookback::predict_window]
+    if max_days and max_days < len(eval_dates):
+        eval_dates = eval_dates[:max_days]
     print(f"  验证日期数: {len(eval_dates)} (每 {predict_window} 日采样)")
 
     all_records = []
@@ -370,6 +387,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", default="0", help="0/1/2/3/full")
     parser.add_argument("--all", action="store_true", help="回测全部 4 折 + full")
+    parser.add_argument("--max-stocks", type=int, default=None,
+                        help="限制评估股票数(小样本快速验证)")
+    parser.add_argument("--max-days", type=int, default=None,
+                        help="限制评估日数")
     args = parser.parse_args()
 
     from enhancement.config_daily import Config
@@ -384,7 +405,7 @@ def main():
             if not os.path.exists(cfg.finetuned_predictor_path):
                 print(f"\n⚠️ fold={fold} 模型不存在,跳过: {cfg.finetuned_predictor_path}")
                 continue
-            s = backtest_fold(fold, cfg)
+            s = backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days)
             if s:
                 summaries.append(s)
 
@@ -406,7 +427,7 @@ def main():
         fold = args.fold if args.fold != "full" else "full"
         cfg_save = cfg.get_cv_save_dir(fold)
         cfg.finetuned_predictor_path = f"{cfg_save}/{cfg.predictor_save_folder_name}/checkpoints/best_model"
-        backtest_fold(fold, cfg)
+        backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days)
 
 
 if __name__ == "__main__":
