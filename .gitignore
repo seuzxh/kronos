@@ -62,6 +62,9 @@ Desktop.ini
 finetune/data/
 finetune/outputs/
 
+# ZCode agent 本地会话数据
+.zcode/
+
 # Logs
 *.log
 logs/
