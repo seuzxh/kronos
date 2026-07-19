@@ -88,19 +88,38 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
     df = stock_history_df.iloc[-lookback:].copy()
 
     # 构造输入(KronosPredictor.predict 需要 OHLCV DataFrame)
-    feature_cols = ['open', 'high', 'low', 'close', 'vol', 'amt']
-    for c in feature_cols:
+    # 注意:KronosPredictor 内部用的列名是 'volume'/'amount',不是 Kronos 微调约定的 'vol'/'amt'
+    # 这里做列名映射,避免量能被自动填 0
+    price_cols = ['open', 'high', 'low', 'close']
+    for c in price_cols:
         if c not in df.columns:
             return None
 
-    # 归一化用 lookback 段(KronosPredictor 内部会做,这里只传原始值)
-    x_df = df[feature_cols].astype(np.float32)
+    x_df = df[price_cols].copy()
+    # 列名映射:vol→volume, amt→amount
+    if 'vol' in df.columns:
+        x_df['volume'] = df['vol']
+    elif 'volume' in df.columns:
+        x_df['volume'] = df['volume']
+    else:
+        x_df['volume'] = 0.0
+    if 'amt' in df.columns:
+        x_df['amount'] = df['amt']
+    elif 'amount' in df.columns:
+        x_df['amount'] = df['amount']
+    else:
+        x_df['amount'] = x_df['volume'] * x_df[price_cols].mean(axis=1)
 
-    # 时间戳
-    timestamps = list(df.index.astype(str))
+    # 不能有 NaN(predict 会 raise)
+    if x_df.isnull().values.any():
+        return None
+    x_df = x_df.astype(np.float32)
 
-    # 未来时间戳(用于生成预测对应的 timestamp;Kronos 要 predict_len 个未来时间戳)
-    # 用最后一天的 weekday 推断未来 predict_window 个交易日(简化:按日历日 +跳周末)
+    # 时间戳:calc_time_stamps 要求 DatetimeIndex(用 .dt 访问器)
+    timestamps = pd.to_datetime(df.index)
+
+    # 未来时间戳:calc_time_stamps 要求 DatetimeIndex
+    # 用最后一天的 weekday 推断未来 predict_window 个交易日(跳周末)
     last_date = pd.to_datetime(df.index[-1])
     future_dates = []
     d = last_date
@@ -108,7 +127,7 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
         d = d + pd.Timedelta(days=1)
         if d.weekday() < 5:  # 跳周末
             future_dates.append(d)
-    future_ts = [d.strftime("%Y-%m-%d") for d in future_dates]
+    future_ts = pd.DatetimeIndex(future_dates)
 
     try:
         with torch.no_grad():
