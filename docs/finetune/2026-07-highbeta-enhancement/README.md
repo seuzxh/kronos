@@ -36,15 +36,20 @@
 
 ---
 
-## 2. 数据资产清单(待拉取/确认)
+## 2. 数据资产清单
 
 | 数据 | 状态 | 来源 | 时间范围 |
 |---|---|---|---|
-| 高贝塔成分股快照(609 日) | ⚠️ 待拉取 | iFinD `data_pool` 接口 | 2024-01-02 ~ 2026-07-10 |
-| 高贝塔指数日线(883926.TI) | ⚠️ 待拉取 | iFinD `date_sequence` | 同上 |
+| 高贝塔成分股快照(609 日) | 🟢 脚本就绪,实测通过 | iFinD `p03473` 接口 | 2024-01-02 ~ 2026-07-17 |
+| 高贝塔指数日线(883926.TI) | 🟢 脚本就绪,实测通过 | iFinD `fetch_history_quotation` | 同上 |
 | 个股日线(后复权) | ✅ 已有 | `/home/zxh/qlib_local_data/cn_data` | 2020-03-02 ~ 2026-05-20 |
 | 个股 5min/1min | ✅ 已有 | 同上 | 2026-01-05 ~ 2026-05-15 |
 | 交易日历 | ✅ 已有 | qlib `day.txt` | — |
+
+**实测验证(2026-07-20)**:
+- p03473 接口拉成分股:3 天 × 100 股 = 300 行 ✅,字段含义已确认(f001=日期/f002=代码/f003=名称)
+- fetch_history_quotation 拉指数日线:6 行 ✅,OHLC 一致性通过
+- 成分股 code_qlib 与 qlib 数据交叉验证:261/263(99.2%)有日线目录 ✅
 
 详见 [data-pipeline.md](data-pipeline.md)。
 
@@ -96,8 +101,12 @@
 ## 5. 执行顺序(操作指引)
 
 ```bash
-# Step 0: 拉数据(需 iFinD 账号在场,详见 data-pipeline.md)
-bash finetune/enhancement/fetch_data.sh
+# Step 0: 拉数据(脚本已就绪,端到端实测通过)
+bash finetune/enhancement/fetch_data.sh                    # 拉全部(~5 分钟)
+# 或分步:
+bash finetune/enhancement/fetch_data.sh index              # 仅指数日线
+bash finetune/enhancement/fetch_data.sh universe           # 仅成分股快照
+bash finetune/enhancement/fetch_data.sh universe --resume  # 断点续拉
 
 # Step 1: 日频预处理 + 训练(详见 loop-stage1-daily.md)
 bash finetune/enhancement/run_daily.sh preprocess

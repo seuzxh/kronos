@@ -59,25 +59,37 @@ client.fetch_history_quotation(
 
 > ✅ `fetch_history_quotation` 注释明确:"cmd_history_quotation(basic 网关 ft.10jqka)历史行情,**支持指数代码**"。已 LIVE-VERIFIED(000300.SH)。
 
-### 2.2 成分股 → data_pool 接口
+### 2.2 成分股 → data_pool `p03473` 接口(✅ 已实测)
 
-高贝塔指数成分股属"同花顺指数成分",iFinD 通过 data_pool 的 reportname 拉取。**关键**:需找到 883926.TI 成分股对应的 reportname。
+高贝塔指数(883926.TI)历史成分股通过 iFinD `data_pool` 的 **`reportname=p03473`** 拉取。
 
-**已知模式**(从 `fetch_popularity_stock` 推断):
+**实测确认**(2026-07-20):
 ```python
+# 接口规范(用户提供 + 实测验证)
+# POST https://quantapi.51ifind.com/api/v1/data_pool
 payload = {
-    "reportname": "<成分股 reportname>",  # 待确认,可能是 ths_index_member 或类似
-    "functionpara": {"date": "20240102", "indexcode": "883926.TI"},
-    "outputpara": "jydm,jydm_mc"
+    "reportname": "p03473",
+    "functionpara": {"iv_date": "20260717", "iv_zsdm": "883926.TI"},
+    "outputpara": "p03473_f001,p03473_f002,p03473_f003"
 }
-# 返回 DataFrame: code_ifind, name
+# 响应字段(实测确认含义):
+#   p03473_f001 = 日期(如 "2026-07-17")
+#   p03473_f002 = 成分股代码(100 只,如 "000014.SZ")
+#   p03473_f003 = 成分股名称(中文,如 "沙河股份")
+# dataVol = 300(100 股 × 3 字段)
+# errorcode = 0
 ```
 
-⚠️ **风险点**:具体 reportname 需查 iFinD 数据手册或现场试探。这是本方案最大的不确定性。
+**实测样本**(2026-07-17 成分股前 5):
+```
+000014.SZ 沙河股份
+000504.SZ 南华生物
+000566.SZ 海南海药
+000639.SZ ST西王
+000676.SZ 智度股份
+```
 
-**降级方案**:如果 data_pool 拉成分股不通,可用 `fetch_board_map` + 历史快照近似:
-- 用现有 `/home/zxh/projects/3.qlib_ifind_beta/data/universe_snapshots.csv`(虽只有 35 天)作种子
-- 按"高贝塔"属性事后筛(计算个股 β vs 市场,β > 阈值纳入)
+**关键观察**:100 只/天,与 DEVLOG 记录一致;代码格式是 iFinD 的 `000014.SZ`,需转 qlib 的 `SZ000014`。
 
 ---
 
@@ -88,65 +100,95 @@ payload = {
 # 拉取高贝塔指增方案所需数据
 set -euo pipefail
 
-# 使用 ifind conda 环境(或 2.qlib_ifind_hot_concept 的 venv)
+# 使用 ifind conda 环境 + 2.qlib_ifind_hot_concept 的 IfindClient
 PYTHON=/home/zxh/miniconda3/envs/ifind/bin/python
 IFIND_LIB=/home/zxh/projects/2.qlib_ifind_hot_concept
 DATA_DIR=/home/zxh/projects/Kronos/finetune/data/enhancement
 
 mkdir -p "$DATA_DIR"
 
-# === 1. 拉指数日线 ===
+# === 1. 拉指数日线(单次请求,~1 秒)===
 echo "[1/2] 拉取 883926.TI 指数日线..."
 PYTHONPATH="$IFIND_LIB" $PYTHON - <<'PY'
-from data.ifind_client import IfindClient
+from data.ifind_client import IfindClient, load_active_name, load_token, refresh_access_token
 import pandas as pd
 
-client = IfindClient()
+# active 账号可能 access_token 过期,构造前先 refresh
+active = load_active_name()
+access, refresh = load_token(active)
+client = IfindClient(access=access, refresh=refresh)
+
 df = client.fetch_history_quotation(
     codes=["883926.TI"],
     indicators=["open", "high", "low", "close", "volume", "amount"],
     start="2024-01-02",
-    end="2026-07-10",
+    end="2026-07-17",
 )
 df.to_csv("finetune/data/enhancement/index_883926.csv", index=False)
-print(f"✅ 指数日线: {len(df)} 行, {df.iloc[:,0].min()} ~ {df.iloc[:,0].max()}")
+print(f"✅ 指数日线: {len(df)} 行, {df['date'].min()} ~ {df['date'].max()}")
 PY
 
-# === 2. 拉成分股历史快照 ===
+# === 2. 拉成分股历史快照(逐日,609 个交易日 × 1 请求/天)===
 echo "[2/2] 拉取 883926.TI 成分股历史快照(609 个交易日)..."
 PYTHONPATH="$IFIND_LIB" $PYTHON finetune/enhancement/fetch_universe.py
 ```
 
-### 3.1 `fetch_universe.py`(分日拉成分股)
+### 3.1 `fetch_universe.py`(分日拉成分股,p03473)
 
 ```python
-"""逐日拉 883926.TI 成分股,拼接成 universe_snapshots.csv"""
+"""逐日拉 883926.TI 成分股(p03473),拼接成 universe_highbeta.csv"""
+import sys, time
+sys.path.insert(0, "/home/zxh/projects/2.qlib_ifind_hot_concept")
 import pandas as pd
-from data.ifind_client import IfindClient
-from data.ifind_parsers import parse_data_pool
+from data.ifind_client import IfindClient, load_active_name, load_token
+from data import config
 
-client = IfindClient()
-trade_dates = client.fetch_trade_dates("2024-01-02", "2026-07-10")
+INDEX_CODE = "883926.TI"
+START, END = "2024-01-02", "2026-07-17"
+OUT = "finetune/data/enhancement/universe_highbeta.csv"
+
+# 构造 client(用 active 账号)
+active = load_active_name()
+access, refresh = load_token(active)
+client = IfindClient(access=access, refresh=refresh)
+
+trade_dates = client.fetch_trade_dates(START, END)
+print(f"交易日数: {len(trade_dates)} ({trade_dates[0]} ~ {trade_dates[-1]})")
 
 all_rows = []
 for i, date in enumerate(trade_dates):
+    iv_date = date.replace("-", "")  # p03473 要 YYYYMMDD
+    payload = {
+        "reportname": "p03473",
+        "functionpara": {"iv_date": iv_date, "iv_zsdm": INDEX_CODE},
+        "outputpara": "p03473_f001,p03473_f002,p03473_f003",
+    }
     try:
-        # ⚠️ reportname 待与 iFinD 确认,以下为伪代码
-        df = client.fetch_index_constituents(  # 需在 IfindClient 新增薄封装
-            index="883926.TI",
-            date=date.replace("-", ""),
-        )
-        df["date"] = date
-        all_rows.append(df)
-        if i % 50 == 0:
-            print(f"  进度: {i}/{len(trade_dates)} ({date})")
+        raw = client._post(config.DATA_POOL_URL, payload)
+        tbl = raw["tables"][0]["table"]
+        n = len(tbl["p03473_f002"])
+        for j in range(n):
+            all_rows.append({
+                "date": date,
+                "code_ifind": tbl["p03473_f002"][j],
+                "name": tbl["p03473_f003"][j],
+            })
+        if i % 50 == 0 or i == len(trade_dates) - 1:
+            print(f"  进度: {i+1}/{len(trade_dates)} ({date}) +{n} 股")
     except Exception as e:
         print(f"  ⚠️ {date} 失败: {e},跳过")
+    time.sleep(0.3)  # 友善限速,避免触发 429
 
-result = pd.concat(all_rows, ignore_index=True)
-# 转 qlib 代码格式(SZ000002)
+result = pd.DataFrame(all_rows)
+# iFinD 代码 → qlib 代码(000014.SZ → SZ000014)
 result["code_qlib"] = result["code_ifind"].str[-2:] + result["code_ifind"].str[:6]
-result.to_csv("finetune/data/enhancement/universe_highbeta.csv", index=False)
+result = result[["date", "code_ifind", "code_qlib", "name"]]
+result.to_csv(OUT, index=False)
+print(f"✅ 成分股快照: {len(result)} 行, {result['date'].nunique()} 日")
+```
+
+**预期耗时**:609 日 × (0.3s sleep + ~0.5s 请求) ≈ **5 分钟**
+**预期产物**:`universe_highbeta.csv` ~6 万行
 print(f"✅ 成分股快照: {len(result)} 行, {result['date'].nunique()} 日")
 ```
 
@@ -237,9 +279,10 @@ print(f"✅ qlib 交叉验证通过")
 
 | 风险 | 概率 | 降级方案 |
 |---|---|---|
-| 成分股 reportname 找不到 | 中 | 用现有 35 天快照 + β 阈值事后筛 |
-| iFinD 配额提前耗尽 | 中 | 切账号 / 等重置 / 缩日期范围 |
-| 指数代码 883926.TI 不可用 | 低 | 换其他高贝塔指数(如 884xxx.TI 系列)|
+| ~~成分股 reportname 找不到~~ | ~~中~~ | ✅ **已实测确认 p03473 可用**(2026-07-20)|
+| iFinD 配额提前耗尽 | 低(用户确认配额正常)| 切账号 / 等重置 / 缩日期范围 |
+| access_token 过期 | 高(secrets 里多数已过期)| 脚本已处理:构造 client 前 refresh;若 refresh_token 也过期需手动登录 iFinD 重新获取 |
+| 指数代码 883926.TI 不可用 | ~~低~~→ ✅ **已实测可用** | — |
 | 成分股历史快照不完整 | 中 | 用当时点实际可交易股票(避免幸存者偏差)|
 
 ---
