@@ -34,14 +34,16 @@ from scipy.stats import spearmanr
 
 ENH_DIR = Path(__file__).resolve().parent
 FINETUNE_DIR = ENH_DIR.parent
-if str(FINETUNE_DIR) not in sys.path:
-    sys.path.insert(0, str(FINETUNE_DIR))
+PROJECT_ROOT = FINETUNE_DIR.parent
+# model 包在项目根目录,finetune 代码在 finetune/
+for p in [str(FINETUNE_DIR), str(PROJECT_ROOT)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 
 def load_model_and_tokenizer(cfg):
     """加载微调后的 predictor + 预训练 tokenizer"""
     import torch
-    from transformers import AutoConfig
     from model import Kronos, KronosTokenizer, KronosPredictor
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -115,10 +117,10 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
         return None
     x_df = x_df.astype(np.float32)
 
-    # 时间戳:calc_time_stamps 要求 DatetimeIndex(用 .dt 访问器)
-    timestamps = pd.to_datetime(df.index)
+    # 时间戳:calc_time_stamps 用 .dt.minute 访问器,要求传入 pandas Series(不是 Index)
+    timestamps = pd.Series(pd.to_datetime(df.index))
 
-    # 未来时间戳:calc_time_stamps 要求 DatetimeIndex
+    # 未来时间戳:calc_time_stamps 用 .dt 访问器,要求 pandas Series
     # 用最后一天的 weekday 推断未来 predict_window 个交易日(跳周末)
     last_date = pd.to_datetime(df.index[-1])
     future_dates = []
@@ -127,7 +129,7 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
         d = d + pd.Timedelta(days=1)
         if d.weekday() < 5:  # 跳周末
             future_dates.append(d)
-    future_ts = pd.DatetimeIndex(future_dates)
+    future_ts = pd.Series(pd.to_datetime(future_dates))
 
     try:
         with torch.no_grad():
@@ -150,6 +152,11 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
         pred_return = float(pred_close[-1] / max(pred_close[0], 1e-6) - 1)
         return pred_return
     except Exception as e:
+        # 打印首个股票的错误(调试用);生产时把 verbose 关掉
+        import traceback
+        if os.environ.get("BACKTEST_DEBUG"):
+            print(f"    [predict error] {type(e).__name__}: {e}")
+            traceback.print_exc()
         return None
 
 
