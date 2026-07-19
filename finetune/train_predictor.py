@@ -25,6 +25,10 @@ _KRONOS_FOLD = os.environ.get('KRONOS_FOLD', None)   # None 表示原固定切�
 if _KRONOS_CONFIG == 'config_highbeta':
     from config_highbeta import Config
     from dataset import HighbetaDataset
+elif _KRONOS_CONFIG == 'config_daily':
+    # 高贝塔指增日频 Loop(Stage 1)
+    from enhancement.config_daily import Config
+    from enhancement.dataset_enh import EnhancementDailyDataset
 else:
     from config import Config
     from dataset import QlibDataset
@@ -59,8 +63,15 @@ def create_dataloaders(config: dict, rank: int, world_size: int):
         # full 模式无独立 val (preprocess 只生成 full/train), 复用 fold3 的 val(最近行情)
         val_fold = '3' if fold == 'full' else fold
         if fold == 'full':
-            print(f"[Rank {rank}] full 模式: 验证集复用 fold3 (最近20天行情)")
+            print(f"[Rank {rank}] full 模型: 验证集复用 fold3 (最近20天行情)")
         valid_dataset = HighbetaDataset('val', fold=val_fold)
+    elif _KRONOS_CONFIG == 'config_daily':
+        fold = config.get('_fold', _KRONOS_FOLD or '0')
+        train_dataset = EnhancementDailyDataset('train', fold=fold)
+        val_fold = '3' if fold == 'full' else fold
+        if fold == 'full':
+            print(f"[Rank {rank}] full 模型(指增日频): 验证集复用 fold3")
+        valid_dataset = EnhancementDailyDataset('val', fold=val_fold)
     else:
         train_dataset = QlibDataset('train')
         valid_dataset = QlibDataset('val')
@@ -208,14 +219,14 @@ def main(config: dict):
     device = torch.device(f"cuda:{local_rank}")
     set_seed(config['seed'], rank)
 
-    # 保存路径: 高贝塔模式含 fold, 避免各折互相覆盖
+    # 保存路径: CV 模式(config_highbeta / config_daily)含 fold, 避免各折互相覆盖
     fold = config.get('_fold')
-    if _KRONOS_CONFIG == 'config_highbeta' and fold is not None:
+    if _KRONOS_CONFIG in ('config_highbeta', 'config_daily') and fold is not None:
         # 'full' 不带 fold 前缀 (与 get_cv_fold_dir / preprocess 一致)
         fold_suffix = str(fold) if fold == 'full' else f"fold{fold}"
         save_dir = os.path.join(config['save_path'], fold_suffix,
                                 config['predictor_save_folder_name'])
-        # 高贝塔模式: tokenizer 先用预训练的(不单独训练)
+        # CV 模式: tokenizer 先用预训练的(不单独训练),对应 H4 假设后续再改
         tokenizer_load_path = config['pretrained_tokenizer_path']
     else:
         save_dir = os.path.join(config['save_path'], config['predictor_save_folder_name'])
