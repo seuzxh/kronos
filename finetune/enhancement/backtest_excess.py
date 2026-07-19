@@ -200,7 +200,7 @@ def compute_actual_excess_returns(stock_df, idx_df, t_idx, predict_window):
     return (stock_return, index_return, excess_return)
 
 
-def backtest_fold(fold, cfg, max_stocks=None, max_days=None):
+def backtest_fold(fold, cfg, max_stocks=None, max_days=None, sample_count=None):
     """对单折做超额收益回测 + RankIC 评估
 
     Args:
@@ -208,11 +208,17 @@ def backtest_fold(fold, cfg, max_stocks=None, max_days=None):
         cfg: 配置
         max_stocks: 限制评估股票数(小样本快速验证用,None=全量)
         max_days: 限制评估日数(None=全量)
+        sample_count: 覆盖 cfg.inference_sample_count(None=用配置默认)
     """
     import torch
 
+    # 覆盖 sample_count(快速验证用 1,生产用 20)
+    if sample_count is not None:
+        cfg.inference_sample_count = sample_count
+
     print(f"\n{'='*60}")
     print(f"回测 fold={fold}" + (f" [小样本: {max_stocks}股]" if max_stocks else " [全量]"))
+    print(f"  sample_count={cfg.inference_sample_count}")
     print(f"{'='*60}")
 
     # 1. 加载验证段数据(直接用 preprocess 产物的 val_daily.pkl)
@@ -391,6 +397,8 @@ def main():
                         help="限制评估股票数(小样本快速验证)")
     parser.add_argument("--max-days", type=int, default=None,
                         help="限制评估日数")
+    parser.add_argument("--sample-count", type=int, default=None,
+                        help="覆盖 sample_count(快速验证用 1,生产用 20)")
     args = parser.parse_args()
 
     from enhancement.config_daily import Config
@@ -405,7 +413,8 @@ def main():
             if not os.path.exists(cfg.finetuned_predictor_path):
                 print(f"\n⚠️ fold={fold} 模型不存在,跳过: {cfg.finetuned_predictor_path}")
                 continue
-            s = backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days)
+            s = backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days,
+                              sample_count=args.sample_count)
             if s:
                 summaries.append(s)
 
@@ -427,7 +436,8 @@ def main():
         fold = args.fold if args.fold != "full" else "full"
         cfg_save = cfg.get_cv_save_dir(fold)
         cfg.finetuned_predictor_path = f"{cfg_save}/{cfg.predictor_save_folder_name}/checkpoints/best_model"
-        backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days)
+        backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days,
+                      sample_count=args.sample_count)
 
 
 if __name__ == "__main__":
