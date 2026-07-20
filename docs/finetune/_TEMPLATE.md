@@ -64,10 +64,10 @@
 
 本方案完整档案:
 
-- 📐 [design.md](design.md) — 方案设计(CV 切分、数据处理、超参选择理由)
-- 🛠️ [devlog.md](devlog.md) — 开发日志(实施细节、踩坑记录)
-- 📈 [training-report.md](training-report.md) — 训练结果分析(收敛曲线、健康度)
-- 💰 [backtest-report.md](backtest-report.md) — 回测结果分析(收益归因、改进方向)
+- 📐 design.md — 方案设计(CV 切分、数据处理、超参选择理由)
+- 🛠️ devlog.md — 开发日志(实施细节、踩坑记录)
+- 📈 training-report.md — 训练结果分析(收敛曲线、健康度)
+- 💰 backtest-report.md — 回测结果分析(收益归因、改进方向)
 
 ---
 

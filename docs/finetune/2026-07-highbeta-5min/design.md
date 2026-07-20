@@ -164,7 +164,7 @@
 
 | 文件 | 作用 |
 |---|---|
-| [`finetune/config_highbeta.py`](../../../finetune/config_highbeta.py) | 本方案配置(数据源/窗口/CV/超参)|
-| [`finetune/universe.py`](../../../finetune/universe.py) | 股池加载(`universe_snapshots.csv`)|
-| [`finetune/preprocess_5min.py`](../../../finetune/preprocess_5min.py) | 1min→5min 聚合 + CV 切分(`_compute_cv_splits`)|
-| [`finetune/dataset.py`](../../../finetune/dataset.py) | `HighbetaDataset` 类(归一化/窗口采样)|
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/config_highbeta.py) | 本方案配置(数据源/窗口/CV/超参)|
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/universe.py) | 股池加载(`universe_snapshots.csv`)|
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/preprocess_5min.py) | 1min→5min 聚合 + CV 切分(`_compute_cv_splits`)|
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/dataset.py) | `HighbetaDataset` 类(归一化/窗口采样)|

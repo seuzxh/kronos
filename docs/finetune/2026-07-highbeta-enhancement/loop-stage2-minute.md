@@ -78,7 +78,7 @@
 
 ### 预处理(沿用上次 + 加指数对齐)
 
-复用 [上次 preprocess_5min.py](../../../finetune/preprocess_5min.py) 的核心逻辑(直接读 bin + numpy 聚合),新增:
+复用 ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/preprocess_5min.py) 的核心逻辑(直接读 bin + numpy 聚合),新增:
 - 指数 5min 序列对齐(同长度同时间戳)
 - 12 维特征拼接
 

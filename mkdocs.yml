@@ -1,0 +1,106 @@
+site_name: Kronos 量化实验笔记
+site_description: 用 Kronos 金融基础模型做 A 股高贝塔选股的两次实验记录 — 原理、方法、失败与所得
+site_url: https://seuzxh.github.io/kronos/
+repo_url: https://github.com/seuzxh/kronos
+repo_name: seuzxh/kronos
+edit_uri: edit/feat/highbeta-5min-finetune/docs/
+docs_dir: docs
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换暗色
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换亮色
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  logo: data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z'/%3E%3C/svg%3E
+
+plugins:
+  - search:
+      lang:
+        - en
+        - ja
+  - tags
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - attr_list
+  - def_list
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/seuzxh/kronos
+  generator: false
+
+nav:
+  - 首页: index.md
+  - 通俗报告(推荐先读):
+    - 总览: tutorial/00-overview.md
+    - 01 什么是 Kronos: tutorial/01-what-is-kronos.md
+    - 02 我们想做什么: tutorial/02-what-we-tried.md
+    - 03 怎么验证(loss≠赚钱): tutorial/03-how-we-evaluated.md
+    - 04 实验结果: tutorial/04-results.md
+    - 05 我们学到什么: tutorial/05-lessons.md
+  - Kronos 原理(深入):
+    - 架构总览: architecture/kronos-overview.md
+    - Tokenizer 原理: architecture/tokenizer.md
+    - Predictor 原理: architecture/predictor.md
+    - 微调流水线: architecture/finetune-pipeline.md
+  - 实验档案(完整):
+    - 索引: finetune/README.md
+    - 高贝塔 5min(实验1,失败): finetune/2026-07-highbeta-5min/README.md
+    - 高贝塔指增(实验2,失败): finetune/2026-07-highbeta-enhancement/README.md

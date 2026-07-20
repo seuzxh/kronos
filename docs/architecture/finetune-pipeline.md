@@ -1,7 +1,7 @@
 # 本项目微调流水线设计
 
 > 理解本项目如何组织一次 Kronos 微调实验。前置阅读:[kronos-overview.md](kronos-overview.md)
-> 代码:[`/finetune/`](../../finetune/) 目录
+> 代码:[`/finetune/`](../finetune/README.md) 目录
 
 ---
 
@@ -194,18 +194,18 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 | 文件 | 作用 |
 |---|---|
-| [`finetune/config.py`](../../finetune/config.py) | 基础 config(原仓库) |
-| [`finetune/config_highbeta.py`](../../finetune/config_highbeta.py) | 高贝塔 5min 方案 config |
-| [`finetune/universe.py`](../../finetune/universe.py) | 股池加载 |
-| [`finetune/preprocess_5min.py`](../../finetune/preprocess_5min.py) | 1min→5min 聚合 + CV 切分 |
-| [`finetune/check_data.py`](../../finetune/check_data.py) | 数据验证 |
-| [`finetune/dataset.py`](../../finetune/dataset.py) | Dataset 类(归一化、窗口采样) |
-| [`finetune/train_predictor.py`](../../finetune/train_predictor.py) | 训练 predictor |
-| [`finetune/train_tokenizer.py`](../../finetune/train_tokenizer.py) | 训练 tokenizer(可选) |
-| [`finetune/backtest_5min.py`](../../finetune/backtest_5min.py) | 5min 回测 |
-| [`finetune/summarize_backtest.py`](../../finetune/summarize_backtest.py) | 4 折回测汇总 |
-| [`finetune/run_cv.sh`](../../finetune/run_cv.sh) | CV 训练流水线编排 |
-| [`finetune/smoke_test.py`](../../finetune/smoke_test.py) | 端到端冒烟测试 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/config.py) | 基础 config(原仓库) |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/config_highbeta.py) | 高贝塔 5min 方案 config |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/universe.py) | 股池加载 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/preprocess_5min.py) | 1min→5min 聚合 + CV 切分 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/check_data.py) | 数据验证 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/dataset.py) | Dataset 类(归一化、窗口采样) |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/train_predictor.py) | 训练 predictor |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/train_tokenizer.py) | 训练 tokenizer(可选) |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/backtest_5min.py) | 5min 回测 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/summarize_backtest.py) | 4 折回测汇总 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/run_cv.sh) | CV 训练流水线编排 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/smoke_test.py) | 端到端冒烟测试 |
 
 ---
 

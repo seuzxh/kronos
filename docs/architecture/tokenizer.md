@@ -138,7 +138,7 @@ Tokenizer **冻结**,只作为编码/解码工具:
 - `encode(x)`:K 线 → token(给 predictor 当 target)
 - `decode(token)`:predictor 输出的 token → K 线(生成预测结果)
 
-> ⚠️ **本项目的关键决策**:高贝塔 5min 微调时**复用预训练 tokenizer,没单独训练**。这是回测不赚钱的疑点之一(见 [改进方向](../finetune/2026-07-highbeta-5min/README.md#改进方向))—— 5min 分布可能和 tokenizer 训练数据不一致。
+> ⚠️ **本项目的关键决策**:高贝塔 5min 微调时**复用预训练 tokenizer,没单独训练**。这是回测不赚钱的疑点之一(见 [改进方向](../finetune/2026-07-highbeta-5min/backtest-report.md))—— 5min 分布可能和 tokenizer 训练数据不一致。
 
 ---
 
@@ -170,5 +170,5 @@ Tokenizer **冻结**,只作为编码/解码工具:
 
 - 🔬 BSQ 论文:https://arxiv.org/pdf/2406.07548.pdf
 - 🔬 VQ-VAE 基础:https://arxiv.org/abs/1711.00937
-- 📁 代码:[`/model/kronos.py`](../../model/kronos.py) `KronosTokenizer` 类(40-178 行)
-- 📁 代码:[`/model/module.py`](../../model/module.py) `BinarySphericalQuantizer` 类(39-223 行)
+- 📁 代码:](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/kronos.py) `KronosTokenizer` 类(40-178 行)
+- 📁 代码:](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/module.py) `BinarySphericalQuantizer` 类(39-223 行)

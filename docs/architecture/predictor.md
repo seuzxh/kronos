@@ -175,10 +175,10 @@ for epoch in range(8):
 
 ## 7. 延伸阅读
 
-- 📁 代码:[`/model/kronos.py`](../../model/kronos.py)
+- 📁 代码:](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/kronos.py)
   - `Kronos` 类(180-310 行):模型本体
   - `KronosPredictor` 类(482-620 行):推理封装
-- 📁 代码:[`/model/module.py`](../../model/module.py)
+- 📁 代码:](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/module.py)
   - `HierarchicalEmbedding` / `DualHead` / `DependencyAwareLayer`:层次化预测组件
   - `TransformerBlock` / `RoPE`:标准 Transformer 模块
-- 📁 训练:[`/finetune/train_predictor.py`](../../finetune/train_predictor.py)
+- 📁 训练:](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/finetune/train_predictor.py)

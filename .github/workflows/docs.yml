@@ -1,0 +1,64 @@
+# 构建 mkdocs-material 文档站点并部署到 GitHub Pages
+# 触发:推送到 feat/highbeta-5min-finetune 或 master 分支的 docs/ 或 mkdocs.yml 变更
+name: Build & Deploy Docs
+
+on:
+  push:
+    branches:
+      - feat/highbeta-5min-finetune
+      - master
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个部署,避免冲突
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史(便于 mkdocs-git-revision-date 插件,虽然本配置未启用)
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install mkdocs-material
+        run: |
+          pip install --upgrade pip
+          pip install mkdocs-material
+          # mkdocs-material 自带 search/tags 插件,无需额外装
+
+      - name: Build site
+        run: mkdocs build --strict --clean
+        # --strict:遇到警告(如断链)就失败,保证文档质量
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

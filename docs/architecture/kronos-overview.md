@@ -102,15 +102,15 @@ HuggingFace 上有三档预训练权重(本项目用 base):
 
 | 文件 | 作用 |
 |---|---|
-| [`/model/kronos.py`](../../model/kronos.py) | Tokenizer + Predictor + KronosPredictor 推理封装 |
-| [`/model/module.py`](../../model/module.py) | BSQ 量化器、Transformer 基础模块 |
-| [`/finetune/`](../../finetune/) | 本项目微调代码(基于 qlib 多股票) |
-| [`/finetune_csv/`](../../finetune_csv/) | 原仓库的单股票 CSV 微调教程 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/kronos.py) | Tokenizer + Predictor + KronosPredictor 推理封装 |
+| ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/model/module.py) | BSQ 量化器、Transformer 基础模块 |
+| [`/finetune/`](../finetune/README.md) | 本项目微调代码(基于 qlib 多股票) |
+| [`/finetune_csv/`](https://github.com/seuzxh/kronos/tree/feat/highbeta-5min-finetune/finetune_csv) | 原仓库的单股票 CSV 微调教程 |
 
 ---
 
 ## 7. 延伸阅读
 
-- 📄 **论文**:Kronos 作者技术报告(见原 [README](../../README.md))
+- 📄 **论文**:Kronos 作者技术报告(见原 ](https://github.com/seuzxh/kronos/blob/feat/highbeta-5min-finetune/README.md))
 - 🤗 **模型权重**:`NeoQuasar/Kronos-base`、`NeoQuasar/Kronos-Tokenizer-base`
 - 🌐 **在线 Demo**:https://shiyu-coder.github.io/Kronos-demo/

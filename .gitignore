@@ -84,3 +84,5 @@ venv.bak/
 temp/
 tmp/
 .python-version
+
+# mkdocs 构建产物(由 GitHub Actions 生成,不入 git)
