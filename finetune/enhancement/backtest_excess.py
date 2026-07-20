@@ -146,10 +146,19 @@ def predict_stock_returns(predictor, stock_history_df, cfg):
             )
         # pred_df 是预测的 K 线 DataFrame,含 open/high/low/close 列
         pred_close = pred_df["close"].values
-        if len(pred_close) < 2:
+        if len(pred_close) == 0:
             return None
-        # 预测累计收益 = 末日收盘 / 首日收盘 - 1
-        pred_return = float(pred_close[-1] / max(pred_close[0], 1e-6) - 1)
+        # 预测收益计算:
+        # - pred_len >= 2: 预测序列内部比值(末日/首日 - 1)
+        # - pred_len == 1: 预测 close / 历史最后 close - 1(单点预测,要参照历史)
+        if len(pred_close) >= 2:
+            pred_return = float(pred_close[-1] / max(pred_close[0], 1e-6) - 1)
+        else:
+            # pred_len=1: 用历史最后一根 close 做基准
+            hist_last_close = float(df["close"].iloc[-1])
+            if hist_last_close <= 0 or pd.isna(hist_last_close):
+                return None
+            pred_return = float(pred_close[-1] / hist_last_close - 1)
         return pred_return
     except Exception as e:
         # 打印首个股票的错误(调试用);生产时把 verbose 关掉
@@ -200,7 +209,7 @@ def compute_actual_excess_returns(stock_df, idx_df, t_idx, predict_window):
     return (stock_return, index_return, excess_return)
 
 
-def backtest_fold(fold, cfg, max_stocks=None, max_days=None, sample_count=None):
+def backtest_fold(fold, cfg, max_stocks=None, max_days=None, sample_count=None, pred_len=None):
     """对单折做超额收益回测 + RankIC 评估
 
     Args:
@@ -209,6 +218,8 @@ def backtest_fold(fold, cfg, max_stocks=None, max_days=None, sample_count=None):
         max_stocks: 限制评估股票数(小样本快速验证用,None=全量)
         max_days: 限制评估日数(None=全量)
         sample_count: 覆盖 cfg.inference_sample_count(None=用配置默认)
+        pred_len: 覆盖 predict_window(None=用配置默认)。注意:模型是用 predict_window=5
+                  训练的,pred_len=1 是推理时改预测长度,不重训
     """
     import torch
 
@@ -216,9 +227,13 @@ def backtest_fold(fold, cfg, max_stocks=None, max_days=None, sample_count=None):
     if sample_count is not None:
         cfg.inference_sample_count = sample_count
 
+    # 覆盖 predict_window(推理时改预测长度,不重训)
+    if pred_len is not None:
+        cfg.predict_window = pred_len
+
     print(f"\n{'='*60}")
     print(f"回测 fold={fold}" + (f" [小样本: {max_stocks}股]" if max_stocks else " [全量]"))
-    print(f"  sample_count={cfg.inference_sample_count}")
+    print(f"  sample_count={cfg.inference_sample_count}, predict_window={cfg.predict_window}")
     print(f"{'='*60}")
 
     # 1. 加载验证段数据(直接用 preprocess 产物的 val_daily.pkl)
@@ -399,6 +414,8 @@ def main():
                         help="限制评估日数")
     parser.add_argument("--sample-count", type=int, default=None,
                         help="覆盖 sample_count(快速验证用 1,生产用 20)")
+    parser.add_argument("--pred-len", type=int, default=None,
+                        help="覆盖 predict_window(推理时改预测长度,不重训)")
     args = parser.parse_args()
 
     from enhancement.config_daily import Config
@@ -414,7 +431,7 @@ def main():
                 print(f"\n⚠️ fold={fold} 模型不存在,跳过: {cfg.finetuned_predictor_path}")
                 continue
             s = backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days,
-                              sample_count=args.sample_count)
+                              sample_count=args.sample_count, pred_len=args.pred_len)
             if s:
                 summaries.append(s)
 
@@ -437,7 +454,7 @@ def main():
         cfg_save = cfg.get_cv_save_dir(fold)
         cfg.finetuned_predictor_path = f"{cfg_save}/{cfg.predictor_save_folder_name}/checkpoints/best_model"
         backtest_fold(fold, cfg, max_stocks=args.max_stocks, max_days=args.max_days,
-                      sample_count=args.sample_count)
+                      sample_count=args.sample_count, pred_len=args.pred_len)
 
 
 if __name__ == "__main__":
