@@ -96,6 +96,7 @@ nav:
     - 04 实验结果: tutorial/04-results.md
     - 05 我们学到什么: tutorial/05-lessons.md
     - 06 怎么用才有效(场景指南): tutorial/06-recommended-uses.md
+    - 07 实验3突破(特征提取器): tutorial/07-breakthrough-features.md
   - Kronos 原理(深入):
     - 架构总览: architecture/kronos-overview.md
     - Tokenizer 原理: architecture/tokenizer.md
