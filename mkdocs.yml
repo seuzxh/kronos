@@ -107,3 +107,4 @@ nav:
     - 高贝塔 5min(实验1,失败): finetune/2026-07-highbeta-5min/README.md
     - 高贝塔指增(实验2,失败): finetune/2026-07-highbeta-enhancement/README.md
     - Kronos 特征+LGBM(实验3,✅首次成功): finetune/2026-07-kronos-5min-features-lgbm/README.md
+    - Kronos 精选+Winsorize(实验4,判定性): finetune/2026-07-kronos-selected-winsorize/README.md
