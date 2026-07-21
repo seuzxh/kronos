@@ -1,9 +1,9 @@
 # Kronos 量化实验笔记
 
-> 用 **Kronos 金融基础模型**做 A 股高贝塔选股的四次完整实验记录 —— 原理、方法、失败、纠错与所得。
+> 用 **Kronos 金融基础模型**做 A 股高贝塔选股的五次完整实验记录 —— 原理、方法、失败、纠错与盖棺。
 
-[![Status](https://img.shields.io/badge/状态-4次实验均无实际alpha-red)]()
-[![Experiments](https://img.shields.io/badge/实验-4次(含1次自我纠错)-important)]()
+[![Status](https://img.shields.io/badge/状态-5次实验盖棺:Kronos对A股选股无效-red)]()
+[![Experiments](https://img.shields.io/badge/实验-5次(含1次自我纠错)-important)]()
 [![License](https://img.shields.io/badge/License-MIT-green)](https://github.com/seuzxh/kronos/blob/master/LICENSE)
 
 ---
@@ -15,8 +15,9 @@
 - **实验 1、2(端到端选股)**:❌ 失败 —— Val Loss 降 42% 但 RankIC ≈ 0
 - **实验 3(特征提取器)**:⚠️ 原宣称"RankIC +6.4% 成功",**后被实验 4 纠错**
 - **实验 4(精选+Winsorize+完整回测)**:❌ Kronos 特征**拖累超额收益**(年化 -16% ~ -65%)
+- **实验 5(T+5 中期反转,对齐 horizon)**:❌ Kronos 在 T+5 也是净负面(超额 -12%,夏普 -0.74)
 
-**最终结论**:**Kronos 对 A 股高贝塔选股没有实际 alpha**(四次实验一致)。但这个结论本身有价值 —— 它是"RankIC 提升 ≠ 能赚钱"的活教材。
+**最终结论(五次实验盖棺)**:**Kronos 对 A 股高贝塔选股没有实际 alpha**,不论端到端还是特征提取器,不论 T+1 还是 T+5,不论全量还是精选。这是 Kronos 的根本局限,不是调参/horizon/特征工程能解决的。
 
 这份记录的价值:
 
@@ -60,6 +61,7 @@
 - [实验 2:高贝塔指增日频](finetune/2026-07-highbeta-enhancement/README.md) ❌ 端到端选股失败
 - [实验 3:Kronos 特征+LGBM](finetune/2026-07-kronos-5min-features-lgbm/README.md) ⚠️ 原报成功,后纠错
 - [实验 4:Kronos 精选+Winsorize](finetune/2026-07-kronos-selected-winsorize/README.md) ❌ 完整回测后失败 + 纠错
+- [实验 5:Kronos T+5 中期反转](finetune/2026-07-kronos-T5-reversal/README.md) ❌ 盖棺:五次实验一致
 
 ---
 
@@ -69,15 +71,17 @@
 
 **结果**(含完整回测,2026-07-21 纠错后):
 
-| | 实验 1(5min) | 实验 2(日频) | 实验 3(特征提取器) | 实验 4(精选+Wins) |
-|---|---|---|---|---|
-| 方法 | 端到端选股 | 端到端选股 | Kronos 特征→LGBM | 精选+Winsorize |
-| 关键指标 | 4 折亏 -32.55% | RankIC -0.006 | RankIC +6.4% 但**超额 -16%** | RankIC +7.2% 但**超额 -65%** |
-| 结论 | ❌ 失败 | ❌ 失败 | ❌ 失败(原误报成功) | ❌ 失败(纠错后) |
+| | 实验 1(5min) | 实验 2(日频) | 实验 3(特征) | 实验 4(精选+Wins) | 实验 5(T+5) |
+|---|---|---|---|---|---|
+| 方法 | 端到端 | 端到端 | Kronos→LGBM | 精选+Wins | T+5 对齐 |
+| 关键指标 | 亏 -32% | RankIC≈0 | RankIC+6%但超额-16% | 超额-65% | 超额-12%夏普-0.74 |
+| 结论 | ❌ | ❌ | ❌(原误报成功) | ❌ | ❌(盖棺) |
 
-**最终结论**:**Kronos 对 A 股高贝塔选股没有实际 alpha**。四次实验一致指向同一结论。
+**最终结论**:**Kronos 对 A 股高贝塔选股没有实际 alpha**。五次实验一致,不论 horizon/特征工程/checkpoint。
 
-**实验 3 的教训(最重要)**:RankIC 提升(+6.4%)不等于超额收益提升(-16%)。我自己犯了我曾经在 [03 怎么验证](tutorial/03-how-we-evaluated.md) 里警告过的错误 —— 只看 IC/RankIC 就宣称成功,没跑完整回测。实验 4 纠正了这个错误。
+**两个核心教训**:
+1. **Val Loss 低 ≠ RankIC 高**(实验 1、2):Kronos 学会了 K 线形态,但没学会选股
+2. **RankIC 升 ≠ 超额升**(实验 3、4、5,三次重复):横截面排序改善不等于 top-10 选股赚钱
 
 **Kronos 不是没用**:它在其他场景(合成数据、波动率、单标的预测)可能有效,详见 [06 怎么用才有效](tutorial/06-recommended-uses.md)。但对 A 股横截面选股,四次实验盖棺定论。
 
