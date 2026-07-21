@@ -86,3 +86,7 @@ tmp/
 .python-version
 
 # mkdocs 构建产物(由 GitHub Actions 生成,不入 git)
+site/
+
+# 特征提取产物(parquet/shard/bins_backup,体积大,不入 git)
+finetune/feature_extraction/output/
